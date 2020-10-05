@@ -8,4 +8,3 @@ disparity = stereo.compute(imgL,imgR)
 plt.imshow(disparity,'gray')
 plt.show()
 #TODO test
-exit(0)
