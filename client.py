@@ -1,6 +1,6 @@
 import socket
 import struct
-
+import pickle
 import cv2
 import numpy as np
 
@@ -19,36 +19,19 @@ client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client.connect(ADDR)
 
 def send(msg):
-    client.send(msg)
-
-
-    # message = np.char.encode(msg, encoding=FORMAT)
-    # #message = msg.encode(FORMAT)
-    # msg_length = len(message)
-    # send_length = str(msg_length).encode(FORMAT)
-    # print(send_length)
-    # send_length += b' ' * (HEADER - len(send_length))
-    # client.send(send_length)
-    # client.send(message)
+    client.sendall(msg)
 
 while True:
-    _, frame = cap.read()
+    img, frame = cap.read()
+    cv2.imshow("in", frame)
     msg_length = client.recv(HEADER).decode(FORMAT)
     if msg_length:
         msg_length = int(msg_length)
         msg = client.recv(msg_length).decode(FORMAT)
         if msg == NEW_FRAME_MESSAGE:
-            print(frame.shape)
-            if frame is not None:
-                send(struct.pack('921600B', *frame.flat))
+            print("frame requested")
+            a = pickle.dumps(frame)
+            message = struct.pack("Q", len(a)) + a
+            send(message)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
-
-send(DISCONNECT_MESSAGE)
-# send("Hello World!")
-# input()
-# send("Hello Everyone!")
-# input()
-# send("Hello Tim!")
-#
-# send(DISCONNECT_MESSAGE)

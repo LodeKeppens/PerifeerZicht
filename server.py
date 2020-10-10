@@ -3,6 +3,7 @@ import struct
 import threading
 import cv2
 import numpy as np
+import pickle
 
 HEADER = 64
 PORT = 5050
@@ -16,30 +17,35 @@ server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind(ADDR)
 
 
+
 def handle_client(conn, addr):
     print(f"[NEW CONNECTION] {addr} connected.")
 
     connected = True
+    data = b""
+    payload_size = struct.calcsize("Q")
     while connected:
         send(conn, "!new_frame")
 
-        data = conn.recv(921600)  # read 230400 bytes
-        arr = np.array(struct.unpack('921600B', data), dtype='B').reshape((640, 480, 3), )
-        cv2.imshow("output", arr)
+        while len(data) < payload_size:
+            packet = conn.recv(4 * 1024)  # 4K
+            if not packet: break
+            data += packet
+        packed_msg_size = data[:payload_size]
+        data = data[payload_size:]
+        msg_size = struct.unpack("Q", packed_msg_size)[0]
 
-        # msg_length = conn.recv(HEADER).decode(FORMAT)
-        # if msg_length:
-        #     msg_length = int(msg_length)
-        #     print(msg_length)
-        #     msg = conn.recv(msg_length).decode(FORMAT)
-        #     msg = str2ndarray(msg)
-        #     if msg == DISCONNECT_MESSAGE:
-        #         connected = False
-        #
-        #     print("image")
-        #     cv2.imshow("stream", msg)
-            #print(f"[{addr}] {msg}")
+        while len(data) < msg_size:
+            data += conn.recv(4 * 1024)
+        frame_data = data[:msg_size]
+        data = data[msg_size:]
+        frame = np.array(pickle.loads(frame_data))
+        print(frame)
 
+        cv2.imshow("RECEIVING VIDEO", frame)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+    cv2.destroyAllWindows()
     conn.close()
 
 def send(conn, msg):
@@ -49,13 +55,6 @@ def send(conn, msg):
     send_length += b' ' * (HEADER - len(send_length))
     conn.send(send_length)
     conn.send(message)
-
-def str2ndarray(a):
-    # Specify your data type, mine is numpy float64 type, so I am specifying it as np.float64
-    a = np.fromstring(a, dtype=int)
-    a = np.reshape(a, SHAPE)
-
-    return a
 
 def start():
     server.listen()
