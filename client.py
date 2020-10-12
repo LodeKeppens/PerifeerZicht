@@ -28,7 +28,8 @@ def send(msg):
     client.sendall(msg)
 
 while True:
-    frame = camera.capture()
+    frame = np.empty((240, 320, 3), dtype=np.uint8)
+    camera.capture(frame)
     cv2.imshow("in", frame)
     msg_length = client.recv(HEADER).decode(FORMAT)
     if msg_length:
