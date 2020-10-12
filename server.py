@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import pickle
 
+
 HEADER = 64
 PORT = 5050
 SHAPE = (480, 640, 3)
@@ -32,6 +33,7 @@ def handle_client(conn, addr):
             if not packet: break
             data += packet
         packed_msg_size = data[:payload_size]
+        print(packed_msg_size)
         data = data[payload_size:]
         msg_size = struct.unpack("Q", packed_msg_size)[0]
 
