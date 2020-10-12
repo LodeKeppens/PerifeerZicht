@@ -98,7 +98,7 @@ start = time.time()
 for frame in camera.capture_continuous(rawCapture, format="rgb", use_video_port=True):
     # grab the raw NumPy array representing the image, then initialize the timestamp
     # and occupied/unoccupied text
-    image = np.array(frame)
+    image = frame.array
     # save image
     msg_length = client.recv(HEADER).decode(FORMAT)
     if msg_length:

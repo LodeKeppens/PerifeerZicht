@@ -40,6 +40,8 @@ def handle_client(conn, addr):
             data += conn.recv(4 * 1024)
         frame_data = data[:msg_size]
         data = data[msg_size:]
+        print(data)
+        print(frame_data)
         frame = np.array(pickle.loads(frame_data))
         print(frame)
 
