@@ -3,9 +3,15 @@ import struct
 import pickle
 import cv2
 import numpy as np
+import time
 
-cap = cv2.VideoCapture(0)
+from picamera.array import PiRGBArray
+from picamera import PiCamera
 
+camera = PiCamera()
+camera.resolution = (640, 480)
+rawCapture = PiRGBArray(camera, size=(640, 480))
+time.sleep(0.1)
 
 HEADER = 64
 PORT = 5050
@@ -22,7 +28,7 @@ def send(msg):
     client.sendall(msg)
 
 while True:
-    img, frame = cap.read()
+    frame = camera.capture()
     cv2.imshow("in", frame)
     msg_length = client.recv(HEADER).decode(FORMAT)
     if msg_length:
