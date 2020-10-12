@@ -3,8 +3,9 @@ import os
 import time
 
 images = []
-path = 'pan'
+path = "fotos"
 myList = os.listdir(path)
+print(myList)
 
 for img in myList:
     curImg = cv2.imread(f'{path}/{img}')
@@ -17,7 +18,7 @@ stitcher = cv2.Stitcher.create()
 start = time.time()
 (status, result) = stitcher.stitch(images)
 end = time.time()
-print(end-start)
+print(end - start)
 if status == cv2.STITCHER_OK:
     print('panorama generated')
     cv2.imshow('result', result)
