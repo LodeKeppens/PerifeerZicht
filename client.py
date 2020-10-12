@@ -12,7 +12,7 @@ PORT = 5050
 FORMAT = 'utf-8'
 DISCONNECT_MESSAGE = "!DISCONNECT"
 NEW_FRAME_MESSAGE = "!new_frame"
-SERVER = "192.168.56.1"
+SERVER = "169.254.136.56"
 ADDR = (SERVER, PORT)
 
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
