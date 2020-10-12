@@ -4,7 +4,7 @@ import pickle
 import cv2
 import numpy as np
 
-cap = cv2.VideoCapture(0)
+camera = cv2.VideoCapture(0)
 
 
 HEADER = 64
@@ -22,7 +22,7 @@ def send(msg):
     client.sendall(msg)
 
 while True:
-    img, frame = cap.read()
+    img, frame = camera.read()
     cv2.imshow("in", frame)
     msg_length = client.recv(HEADER).decode(FORMAT)
     if msg_length:
