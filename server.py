@@ -22,28 +22,20 @@ def handle_client(conn, addr):
     print(f"[NEW CONNECTION] {addr} connected.")
 
     connected = True
-    data = b""
-    payload_size = struct.calcsize("Q")
     while connected:
+        data = b""
+        payload_size = struct.calcsize("Q")
         send(conn, "!new_frame")
+        msg_size = conn.recv(HEADER).decode(FORMAT)
+        print("size", msg_size)
 
-        while len(data) < payload_size:
-            packet = conn.recv(4 * 1024)  # 4K
-            if not packet: break
-            data += packet
-        packed_msg_size = data[:payload_size]
-        print(packed_msg_size)
-        data = data[payload_size:]
-        msg_size = struct.unpack("Q", packed_msg_size)[0]
-
-        while len(data) < msg_size:
+        while len(data) < int(msg_size):
             data += conn.recv(4 * 1024)
-        frame_data = data[:msg_size]
-        data = data[msg_size:]
+        frame_data = data
         print(data)
-        print(frame_data)
+        print("frame data",frame_data)
         frame = np.array(pickle.loads(frame_data))
-        print(frame)
+        print("frame", frame)
 
         cv2.imshow("RECEIVING VIDEO", frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
