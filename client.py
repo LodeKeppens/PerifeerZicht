@@ -8,7 +8,7 @@ import socket
 import pickle
 import struct
 
-
+size_send = False
 HEADER = 64
 PORT = 5050
 FORMAT = 'utf-8'
@@ -42,12 +42,14 @@ for frame in camera.capture_continuous(rawCapture, format="rgb", use_video_port=
         msg_length = int(msg_length)
         msg = client.recv(msg_length).decode(FORMAT)
         if msg == NEW_FRAME_MESSAGE:
-            print("frame requested")
             message = pickle.dumps(image)
-            msg_length = len(message)
-            send_length = str(msg_length).encode(FORMAT)
-            send_length += b' ' * (HEADER - len(send_length))
-            client.send(send_length)
+            if not size_send:
+                size_send = True
+                msg_length = len(message)
+                print(msg_length)
+                send_length = str(msg_length).encode(FORMAT)
+                send_length += b' ' * (HEADER - len(send_length))
+                client.send(send_length)
             client.send(message)
     # show the frame
     #cv2.imshow("Frame", image)
