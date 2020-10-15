@@ -4,13 +4,14 @@ import threading
 import cv2
 import numpy as np
 import pickle
-
+import time
 
 HEADER = 64
 PORT = 5050
 SHAPE = (480, 640, 3)
 SERVER = socket.gethostbyname(socket.gethostname())
-ADDR = (SERVER, PORT)
+# ADDR = (SERVER, PORT)
+ADDR = ('192.168.43.140', PORT)
 FORMAT = 'utf-8'
 DISCONNECT_MESSAGE = "!DISCONNECT"
 
@@ -20,32 +21,35 @@ server.bind(ADDR)
 
 def handle_client(conn, addr):
     print(f"[NEW CONNECTION] {addr} connected.")
-
+    message = None
+    # size_received = False
     connected = True
-    data = b""
-    payload_size = struct.calcsize("Q")
+    start = time.time()
     while connected:
+        end = time.time()
+        print(end-start)
+        start = end
+
+        data = b""
+        # payload_size = struct.calcsize("Q")
         send(conn, "!new_frame")
+        # if not size_received:
+        #     size_received = True
 
-        while len(data) < payload_size:
-            packet = conn.recv(4 * 1024)  # 4K
-            if not packet: break
-            data += packet
-        packed_msg_size = data[:payload_size]
-        print(packed_msg_size)
-        data = data[payload_size:]
-        msg_size = struct.unpack("Q", packed_msg_size)[0]
+        message = conn.recv(HEADER).decode(FORMAT)
+        if message[:len(DISCONNECT_MESSAGE)] == DISCONNECT_MESSAGE:
+            break
 
-        while len(data) < msg_size:
+        while len(data) < int(message):
             data += conn.recv(4 * 1024)
-        frame_data = data[:msg_size]
-        data = data[msg_size:]
-        frame = np.array(pickle.loads(frame_data))
-        print(frame)
-
+        # print(data)
+        frame = np.array(pickle.loads(data))
+        # print(frame)
         cv2.imshow("RECEIVING VIDEO", frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
+
+    send(conn,DISCONNECT_MESSAGE)
     cv2.destroyAllWindows()
     conn.close()
 

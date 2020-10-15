@@ -33,6 +33,7 @@ def handle_client(conn, addr):
     connected = True
     data = b""
     payload_size = struct.calcsize("Q")
+    # initializations for image capture and stitching
     frame2 = np.empty((cam_res[0], cam_res[1], 3), dtype=np.uint8)  # preallocate image
     stitcher = cv2.Stitcher.create()
 
@@ -59,7 +60,7 @@ def handle_client(conn, addr):
         cam.capture(frame2, 'rgb')
 
         # convert picture to cv2 format
-
+        # not necessary?
 
         # merge the two pictures
         images = [frame, frame2]
