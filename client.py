@@ -6,7 +6,7 @@ import time
 import numpy as np
 import socket
 import pickle
-import struct
+# import struct
 
 
 HEADER = 64
