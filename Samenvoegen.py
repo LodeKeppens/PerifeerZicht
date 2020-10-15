@@ -4,12 +4,14 @@ import threading
 import cv2
 import numpy as np
 import pickle
+from picamera import PiCamera
+from pano_def import *
 
 HEADER = 64
 PORT = 5050
 SHAPE = (480, 640, 3)
 SERVER = socket.gethostbyname(socket.gethostname())
-ADDR = (SERVER, PORT)
+ADDR = ('192.168.43.140', PORT)
 FORMAT = 'utf-8'
 DISCONNECT_MESSAGE = "!DISCONNECT"
 
@@ -34,8 +36,7 @@ def handle_client(conn, addr):
     data = b""
     payload_size = struct.calcsize("Q")
     # initializations for image capture and stitching
-    frame2 = np.empty((cam_res[0], cam_res[1], 3), dtype=np.uint8)  # preallocate image
-    stitcher = cv2.Stitcher.create()
+    frame2 = np.empty((cam_res[0], cam_res[1], 3), dtype=np.uint8)
 
     while connected:
         send(conn, "!new_frame")
@@ -57,17 +58,14 @@ def handle_client(conn, addr):
 
         # take one picture
         # frame2 = np.empty((cam_res[0], cam_res[1], 3), dtype=np.uint8)  # preallocate image
-        cam.capture(frame2, 'rgb')
+        cam.capture(frame2, 'bgr')
 
         # convert picture to cv2 format
         # not necessary?
 
         # merge the two pictures
-        images = [frame, frame2]
-        (status, result) = stitcher.stitch(images)
-        if status == cv2.STITCHER_OK:
-            print('panorama generated')
-            cv2.imshow('result', result)
+        result = stitch([frame, frame2])
+        cv2.imshow('result', result)
 
         # TODO Foto nemen, foto samenvoegen, display
 
