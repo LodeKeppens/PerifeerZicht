@@ -3,6 +3,7 @@ import os
 import numpy as np
 import time
 import multiprocessing
+import threading
 
 def fotos_ophalen():
     images = []
@@ -77,13 +78,11 @@ def warpperspective(left, right, M):
     dst = cv2.warpPerspective(right, M, (left.shape[1] + right.shape[1], right.shape[0]))
     return dst
 
-def voeg_samen(dst, left, w, h):
-    s = 0
-    while (s < w) and not np.sum(dst[0:h, s]):
-        s += 1
-    dst[:h, :s] = left[:h, :s]
+
+def voeg_samen(dst, left, w, h, s):
     for n in range(s, w):
         x = (n-s)/(w-s)
+        cv2.waitKey(1)
         up = 0
         while not np.sum(dst[up, n]):
             up += 5
@@ -92,7 +91,8 @@ def voeg_samen(dst, left, w, h):
             down -= 5
         dst[:up,n],dst[up:down,n],dst[down:,n] = left[:up, n], cv2.addWeighted(left[up:down, n], 1 - x, dst[up:down, n], x, 0), left[down:, n]
 
-def voeg_samen_multiprocess(n,s,w,left_image,dst):
+
+def voeg_samen_multiprocess(n):
     x = (n - s) / (w - s)
     up = 0
     while not np.sum(dst[up, n]):
@@ -101,6 +101,21 @@ def voeg_samen_multiprocess(n,s,w,left_image,dst):
     while not np.sum(dst[down, n]):
         down -= 5
     dst[:up, n], dst[up:down, n], dst[down:, n] = left_image[:up, n], cv2.addWeighted(left_image[up:down, n], 1 - x,dst[up:down, n], x, 0), left_image[down:, n]
+
+
+def voeg_samen_multithread(left, dst, w, h, s):
+    step = (w-s)//2
+    t1 = threading.Thread(target=voeg_samen, args=(dst, left, s+step, h, s))
+    t2 = threading.Thread(target=voeg_samen, args=(left, dst, w, h, s+step))
+
+    t1.start()
+    t2.start()
+
+    t1.join()
+    t2.join()
+
+
+
 
 
 # maakt de overgang langzaam, waardoor er geen lijn zichtbaar is (snel maar niet zo goed)
@@ -124,19 +139,21 @@ if __name__ == '__main__':
     Matrix = keypoints_en_transformatiematrix(left_image, right_image)
     dst = warpperspective(left_image, right_image, Matrix)
     start = time.time()
-    # voeg_samen(dst, left_image, w, h)
     s = 0
     while (s < w) and not np.sum(dst[0:h, s]):
         s += 1
     dst[:h, :s] = left_image[:h, :s]
-
-    processes = []
-    for n in range(s, w):
-        p = multiprocessing.Process(target=voeg_samen_multiprocess, args=(n,s))
-        processes.append(p)
-        p.start()
-    for process in processes:
-        process.join()
+    # voeg_samen(dst, left_image, w, h, s)
+    voeg_samen_multithread(left_image, dst, w, h, s)
+    # pool = multiprocessing.Pool()
+    # pool.map(voeg_samen_multiprocess, range(s, w))
+    # processes = []
+    # for n in range(s, w):
+    #     p = multiprocessing.Process(target=voeg_samen_multiprocess, args=(n,s,w,h,left_image,dst))
+    #     processes.append(p)
+    #     p.start()
+    # for process in processes:
+    #     process.join()
     end = time.time()
     print("tijd om samen te voegen:", end-start)
     cv2.imshow("original_image_stiched_crop.jpg", dst)
