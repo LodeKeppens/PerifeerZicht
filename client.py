@@ -36,12 +36,13 @@ for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=
     # and occupied/unoccupied text
     image = frame.array
     # save image
-    msg_length = client.recv(HEADER).decode(FORMAT)
+    msg_length = client.recv(HEADER).decode(FORMAT) # Turns the incoming message
+                                                    # from a bytes object to an string.
     if msg_length:
         msg_length = int(msg_length)
         msg = client.recv(msg_length).decode(FORMAT)
         if msg == NEW_FRAME_MESSAGE:
-            message = pickle.dumps(image)
+            message = pickle.dumps(image) # Turns the image into a bytes object.
             msg_length = len(message)
             send_length = str(msg_length).encode(FORMAT)
             send_length += b' ' * (HEADER - len(send_length))
