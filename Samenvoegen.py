@@ -5,33 +5,39 @@ import cv2
 import numpy as np
 import pickle
 from picamera import PiCamera
-from pano_def import *
+# from pano_def import *
 import time
+import video
 
+_finish = False
 HEADER = 64
 PORT = 5051
 SHAPE = (480, 640, 3)
 SERVER = socket.gethostbyname(socket.gethostname())
-ADDR = ('192.168.137.128', PORT)
-#ADDR = ('192.168.43.140', PORT)
+ADDR = ('169.254.233.181', PORT)
 FORMAT = 'utf-8'
 DISCONNECT_MESSAGE = "!DISCONNECT"
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+#server.close()
 server.bind(ADDR)
+
+cam_res = (480,640)
+# camera initialization
+cam = PiCamera()
+cam.resolution = (cam_res[1],cam_res[0])
 
 ## initialisations for the camera
 # h = 1024 # change this to anything < 2592 (anything over 2000 will likely get a memory error when plotting
 # cam_res = (int(h),int(0.75*h)) # keeping the natural 3/4 resolution of the camera
 # we need to round to the nearest 16th and 32nd (requirement for picamera)
 # cam_res = (int(16*np.floor(cam_res[1]/16)),int(32*np.floor(cam_res[0]/32)))
-cam_res = (640,480)
-# camera initialization
-cam = PiCamera()
-cam.resolution = (cam_res[1],cam_res[0])
+
 
 
 def handle_client(conn, addr):
+    global _finish
+
     print(f"[NEW CONNECTION] {addr} connected.")
 
     connected = True
@@ -41,9 +47,10 @@ def handle_client(conn, addr):
     # initializations for image capture and stitching
     frame2 = np.empty((cam_res[0], cam_res[1], 3), dtype=np.uint8)
     stitcher = cv2.Stitcher.create()
+    first_frame = True
     while connected:
         end = time.time()
-        print(end-start)
+        print('totale tijd:', end-start)
         start = end
 
         data = b""
@@ -64,35 +71,44 @@ def handle_client(conn, addr):
         print('time between asking and return',t2-t1)
         # print(data)
         frame = np.array(pickle.loads(data))
-
+        t3 = time.time()
+        print('pickle.loads', t3 - t2)
+        
         # take one picture
-        # frame2 = np.empty((cam_res[0], cam_res[1], 3), dtype=np.uint8)  # preallocate image
         cam.capture(frame2, 'bgr')
-        print(frame.shape)
-        cv2.imshow('ontvangen', frame)
-        cv2.imshow('image', frame2)
-        cv2.waitKey(2000)
-
-        # convert picture to cv2 format
-        # not necessary?
-
+        t4 = time.time()
+        print('foto nemen', t4 - t3)
+        
         # merge the two pictures
-        print("stitch")
-        # result = stitch([frame, frame2])
-        status, result = stitcher.stitch((frame,frame2))
-        print("end stitch")
-        print(status)
-        #print(result.shape)
-        if status == 0:
-            cv2.imwrite('stitched.jpg',result)
-            cv2.imshow('result', result)
+        if first_frame:
+            print('matrix berekenen')
+            matrix, first_frame = video.find_kp_and_matrix((frame, frame2))
+            t5 = time.time()
+            print('matrix',t5 - t4)
+        if not first_frame:
+            print('Stitching')
+            pano = video.match_pano((frame, frame2), matrix)
+            t5 = time.time()
+            print('stitching',t5 - t4)
+            print('End stitch')
+            cv2.imshow('pano', pano)
+        # status, result = stitcher.stitch((frame,frame2))
+        # print(status)
+        # if status == 0:
+        #     cv2.imshow('result', result)
 
         # TODO Foto nemen, foto samenvoegen, display
-        cv2.imshow("RECEIVING VIDEO", frame)
+        #cv2.imshow("RECEIVING VIDEO", frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
     cv2.destroyAllWindows()
-    conn.close()
+    send(conn, DISCONNECT_MESSAGE)
+    #conn.close()
+    server.close()
+    _finish = True
+    #main_thread.join()
+    exit(0)
+    
 
 def send(conn, msg):
     message = msg.encode(FORMAT)
@@ -110,8 +126,12 @@ def start():
         print(1)
         thread = threading.Thread(target=handle_client, args=(conn, addr))
         thread.start()
-        print(f"[ACTIVE CONNECTIONS] {threading.activeCount() - 1}")
-
+        # print(f"[ACTIVE CONNECTIONS] {threading.activeCount() - 1}")
+        if _finish:
+            thread.join()
+            print("stop")
+            break
+        
 
 print("[STARTING] server is starting...")
 start()
