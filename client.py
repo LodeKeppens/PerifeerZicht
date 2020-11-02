@@ -6,15 +6,16 @@ import time
 import numpy as np
 import socket
 import pickle
-# import struct
+import struct
 
 
 HEADER = 64
-PORT = 5050
+PORT = 5051
 FORMAT = 'utf-8'
 DISCONNECT_MESSAGE = "!DISCONNECT"
 NEW_FRAME_MESSAGE = "!new_frame"
-SERVER = "192.168.43.140"
+#SERVER = "192.168.137.128"
+SERVER = "169.254.233.181"
 ADDR = (SERVER, PORT)
 
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -26,21 +27,21 @@ def send(msg):
 # initialize the camera and grab a reference to the raw camera capture
 camera = PiCamera()
 camera.resolution = (640, 480)
-camera.framerate = 32
-rawCapture = PiRGBArray(camera, size=(640, 480))
-# allow the camera to warmup
+camera.framerate = 64
 time.sleep(0.1)
-# capture frames from the camera
-for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
-    # grab the raw NumPy array representing the image, then initialize the timestamp
-    # and occupied/unoccupied text
-    image = frame.array
-    # save image
+image = np.empty((480,640,3), dtype=np.uint8)
+
+while True:
     msg_length = client.recv(HEADER).decode(FORMAT)
     if msg_length:
         msg_length = int(msg_length)
         msg = client.recv(msg_length).decode(FORMAT)
+        print('frame asked')
         if msg == NEW_FRAME_MESSAGE:
+            t1 = time.time()
+            camera.capture(image, 'bgr')
+            print('foto nemen', t1-time.time())
+            # cv2.imshow('frame', image)
             message = pickle.dumps(image)
             msg_length = len(message)
             send_length = str(msg_length).encode(FORMAT)
@@ -49,12 +50,7 @@ for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=
             client.send(message)
         elif msg == DISCONNECT_MESSAGE:
             exit(0)
-    # show the frame
-    #cv2.imshow("Frame", image)
     key = cv2.waitKey(1) & 0xFF
-    # clear the stream in preparation for the next frame
-    rawCapture.truncate(0)
-    # if the `q` key was pressed, break from the loop
     if key == ord("q"):
         break
     
