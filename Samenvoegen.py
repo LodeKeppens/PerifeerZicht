@@ -1,11 +1,11 @@
 import socket
 import struct
-import multiprocessing
+import threading
 import cv2
 import numpy as np
 import pickle
 from picamera import PiCamera
-from pano_def import *
+# from pano_def import *
 import time
 import video
 
@@ -15,26 +15,29 @@ PORT = 5051
 SHAPE = (480, 640, 3)
 SERVER = socket.gethostbyname(socket.gethostname())
 ADDR = ('169.254.233.181', PORT)
-#ADDR = ('b8:27:eb:1f:c4:b2', PORT)
 FORMAT = 'utf-8'
 DISCONNECT_MESSAGE = "!DISCONNECT"
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+#server.close()
 server.bind(ADDR)
+
+cam_res = (480,640)
+# camera initialization
+cam = PiCamera()
+cam.resolution = (cam_res[1],cam_res[0])
 
 ## initialisations for the camera
 # h = 1024 # change this to anything < 2592 (anything over 2000 will likely get a memory error when plotting
 # cam_res = (int(h),int(0.75*h)) # keeping the natural 3/4 resolution of the camera
 # we need to round to the nearest 16th and 32nd (requirement for picamera)
 # cam_res = (int(16*np.floor(cam_res[1]/16)),int(32*np.floor(cam_res[0]/32)))
-cam_res = (480,640)
-# camera initialization
-cam = PiCamera()
-cam.resolution = (cam_res[1],cam_res[0])
 
 
-def handle_client(conn, addr, main_thread):
+
+def handle_client(conn, addr):
     global _finish
+
     print(f"[NEW CONNECTION] {addr} connected.")
 
     connected = True
@@ -47,7 +50,7 @@ def handle_client(conn, addr, main_thread):
     first_frame = True
     while connected:
         end = time.time()
-        print(end-start)
+        print('totale tijd:', end-start)
         start = end
 
         data = b""
@@ -68,15 +71,27 @@ def handle_client(conn, addr, main_thread):
         print('time between asking and return',t2-t1)
         # print(data)
         frame = np.array(pickle.loads(data))
-
+        t3 = time.time()
+        print('pickle.loads', t3 - t2)
+        
         # take one picture
         cam.capture(frame2, 'bgr')
+        t4 = time.time()
+        print('foto nemen', t4 - t3)
+        
         # merge the two pictures
         if first_frame:
-            matrix = video.find_kp_and_matrix((frame, frame2))
-            first_frame = False
-        pano = video.match_pano((frame, frame2), matrix)
-        cv2.imshow('pano', pano)
+            print('matrix berekenen')
+            matrix, first_frame = video.find_kp_and_matrix((frame, frame2))
+            t5 = time.time()
+            print('matrix',t5 - t4)
+        if not first_frame:
+            print('Stitching')
+            pano = video.match_pano((frame, frame2), matrix)
+            t5 = time.time()
+            print('stitching',t5 - t4)
+            print('End stitch')
+            cv2.imshow('pano', pano)
         # status, result = stitcher.stitch((frame,frame2))
         # print(status)
         # if status == 0:
@@ -109,12 +124,12 @@ def start():
     while True:
         conn, addr = server.accept()
         print(1)
-        thread = multiprocessing.Process(target=handle_client, args=(conn, addr))
+        thread = threading.Thread(target=handle_client, args=(conn, addr))
         thread.start()
         # print(f"[ACTIVE CONNECTIONS] {threading.activeCount() - 1}")
         if _finish:
-            thread.terminate()
             thread.join()
+            print("stop")
             break
         
 
