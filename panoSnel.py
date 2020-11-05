@@ -42,18 +42,18 @@ def keypoints_en_transformatiematrix(left, right):
     sift = cv2.SIFT_create()
     kp1, des1 = sift.detectAndCompute(gray1, None)      # zoek de keypoints
     kp2, des2 = sift.detectAndCompute(gray2, None)
-    # cv2.imshow('original images keypoints', cv2.drawKeypoints(image1, kp1, None))
+    # cv2.imshow('original images keypoints', cv2.drawKeypoints(right, kp1, None))
     match = cv2.BFMatcher()
     matches = match.knnMatch(des1, des2, k=2)
     good = []
     for m, n in matches:
         if m.distance < n.distance:
             good.append(m)
-    # print(good)
+    print(good)
     # draw_parameters = dict(matchColor=(0, 255, 0),
     #                        singlePointColor=None,
     #                        flags=2)
-    # img3 = cv2.drawMatches(image1, kp1, image2, kp2, good, None, **draw_parameters)
+    # img3 = cv2.drawMatches(left, kp1, right, kp2, good, None, **draw_parameters)
     # cv2.imshow('draw_matches', img3)
     end = time.time()
     print("time for keypoints:", end-start)
@@ -70,11 +70,12 @@ def keypoints_en_transformatiematrix(left, right):
     return M
 
 def warpperspective(left, right, M):
-    # h, w = image1.shape
-    # pts = np.float32([[0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0]]).reshape(-1, 1, 2)
-    # end = time.time()
+    h, w, z = left.shape
+    pts = np.float32([[0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0]]).reshape(-1, 1, 2)
+    end = time.time()
     # dst = cv2.perspectiveTransform(pts, M)
-    # img2 = cv2.polylines(image2, [np.int32(dst)], True, 255, 3, cv2.LINE_AA)# cv2.imshow("original_image_overlapping.jpg", img2)
+    # img2 = cv2.polylines(left, [np.int32(dst)], True, 255, 3, cv2.LINE_AA)
+    # cv2.imshow("original_image_overlapping.jpg", img2)
     dst = cv2.warpPerspective(right, M, (left.shape[1] + right.shape[1], right.shape[0]))
     return dst
 
