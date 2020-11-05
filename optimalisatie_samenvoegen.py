@@ -19,7 +19,7 @@ ADDR = ("169.254.186.249", PORT)
 FORMAT = 'utf-8'
 DISCONNECT_MESSAGE = "!DISCONNECT"
 
-server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 # server.close()
 server.bind(ADDR)
 
@@ -118,12 +118,9 @@ def start():
     print(f"[LISTENING] Server is listening on {SERVER}")
     while True:
         conn, addr = server.accept()
-        print(1)
-        thread = threading.Thread(target=handle_client, args=(conn, addr))
-        thread.start()
+        handle_client(conn,addr)
         # print(f"[ACTIVE CONNECTIONS] {threading.activeCount() - 1}")
         if _finish:
-            thread.join()
             print("stop")
             break
 
