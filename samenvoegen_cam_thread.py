@@ -9,7 +9,7 @@ from picamera.array import PiRGBArray
 # from pano_def import *
 import time
 import video
-from queue import Queue
+from queue import LifoQueue
 
 _finish = False
 HEADER = 16
@@ -38,17 +38,12 @@ except:
 print("port:", PORT)
 # camera initialization
 cam = PiCamera()
-cam_res = (320, 240)
+cam_res = (320,240)
 cam.resolution = cam_res
-cam.framerate = 32
+cam.framerate = 24
 rawCapture = PiRGBArray(cam, size=cam_res)
 
 
-## initialisations for the camera
-# h = 1024 # change this to anything < 2592 (anything over 2000 will likely get a memory error when plotting
-# cam_res = (int(h),int(0.75*h)) # keeping the natural 3/4 resolution of the camera
-# we need to round to the nearest 16th and 32nd (requirement for picamera)
-# cam_res = (int(16*np.floor(cam_res[1]/16)),int(32*np.floor(cam_res[0]/32)))
 
 
 def handle_client(conn, addr, q):
@@ -63,7 +58,6 @@ def handle_client(conn, addr, q):
     # initializations for image capture and stitching
     stitcher = cv2.Stitcher.create()
     first_frame = True
-    time.sleep(0.1)
     while connected:
         frame2 = q.get()
         end = time.time()
@@ -86,23 +80,14 @@ def handle_client(conn, addr, q):
             data += conn.recv(4 * 1024)
         # print(data)
         frame = np.array(pickle.loads(data))
-        t1 = time.time()
-        print("received data", t1 - start)
         # merge the two pictures
         if first_frame:
-            t2 = time.time()
             first_frame = False
-            print('matrix berekenen')
             # matrix, s = video.eerste_frame((frame, frame2))
             matrix, _ = video.find_kp_and_matrix((frame, frame2))
             s = 0
-            t3 = time.time()
-            print("matrix berekenen", t3 - t2)
         if not first_frame:
-            t4 = time.time()
             pano = video.match_pano((frame, frame2), matrix, s)
-            t5 = time.time()
-            print("stitching", t5 - t4)
             cv2.imshow('pano', pano)
         # status, result = stitcher.stitch((frame,frame2))
         # if status == 0:
@@ -110,7 +95,6 @@ def handle_client(conn, addr, q):
 
         # TODO Foto nemen, foto samenvoegen, display
         # cv2.imshow("RECEIVING VIDEO", frame)
-        rawCapture.truncate(0)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
     cv2.destroyAllWindows()
@@ -135,15 +119,14 @@ def video_stream(q):
     time.sleep(0.1)
     for frame2 in cam.capture_continuous(rawCapture, format="bgr", use_video_port=True):
         q.put(frame2.array)
-
+        rawCapture.truncate(0)
 
 def start():
     server.listen()
     print(f"[LISTENING] Server is listening on {SERVER}")
-    q = Queue(1)
+    q = LifoQueue(maxsize=1)
     while True:
         conn, addr = server.accept()
-        print(1)
         thread = threading.Thread(target=handle_client, args=(conn, addr, q))
         cameraThread = threading.Thread(target=video_stream, args=(q,))
         cameraThread.start()
