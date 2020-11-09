@@ -10,6 +10,7 @@ from picamera.array import PiRGBArray
 import time
 import stitcher
 from queue import LifoQueue
+import paramiko
 
 _finish = False
 HEADER = 16
@@ -46,7 +47,11 @@ cam.framerate = 24
 rawCapture = PiRGBArray(cam, size=cam_res)
 
 
-
+def run_client():
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy)
+    ssh.connect("169.254.130.140", username="pi", password="qwertyui")
+    ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command("python Documents/client_no_length.py")
 
 def handle_client(conn, addr, q):
     global _finish
@@ -57,8 +62,6 @@ def handle_client(conn, addr, q):
     data = b""
     start = time.time()
     payload_size = struct.calcsize("Q")
-    # initializations for image capture and stitching
-    stitcher = cv2.Stitcher.create()
     first_frame = True
     while connected:
         frame2 = q.get()
@@ -84,7 +87,6 @@ def handle_client(conn, addr, q):
         frame = np.array(pickle.loads(data))
         # merge the two pictures
         if first_frame:
-            first_frame = False
             matrix, s = stitcher.eerste_frame((frame, frame2))
             if matrix is not None:
                 first_frame = False
@@ -127,6 +129,7 @@ def start():
     server.listen()
     print(f"[LISTENING] Server is listening on {SERVER}")
     q = LifoQueue(maxsize=1)
+    run_client()
     while True:
         conn, addr = server.accept()
         thread = threading.Thread(target=handle_client, args=(conn, addr, q))
