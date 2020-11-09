@@ -64,11 +64,10 @@ def handle_client(conn, addr, q):
     payload_size = struct.calcsize("Q")
     first_frame = True
     while connected:
-        frame2 = q.get()
         end = time.time()
         print('totale tijd:', end - start)
         start = end
-
+        frame2 = q.get()
         data = b""
         # payload_size = struct.calcsize("Q")
         send(conn, "!new_frame")
