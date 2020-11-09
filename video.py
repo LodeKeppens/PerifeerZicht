@@ -9,7 +9,6 @@ def video_ophalen(path):
     ret, frame = cap.read()
     video = []
     while ret:
-        # cv2.imshow('video', frame)
         frame = cv2.resize(frame, (640, 480))
         video.append(frame)
         ret, frame = cap.read()
@@ -32,28 +31,28 @@ def splits(frames, w):
 
 
 def find_kp_and_matrix(images):
-    (image2, image1) = images
-    gray1 = cv2.cvtColor(image1, cv2.COLOR_BGR2GRAY)
-    gray2 = cv2.cvtColor(image2, cv2.COLOR_BGR2GRAY)
+    (left, right) = images
+    # gray1 = cv2.cvtColor(right, cv2.COLOR_BGR2GRAY)
+    # gray2 = cv2.cvtColor(left, cv2.COLOR_BGR2GRAY)
     sift = cv2.SIFT_create()
-    kp1, des1 = sift.detectAndCompute(gray1, None)
-    kp2, des2 = sift.detectAndCompute(gray2, None)
-    # cv2.imshow('keypoints left image:', cv2.drawKeypoints(image2, kp2, None))
-    # cv2.imshow('keypoints right image:', cv2.drawKeypoints(image1, kp1, None))
+    kp1, des1 = sift.detectAndCompute(left, None)
+    kp2, des2 = sift.detectAndCompute(right, None)
+    # cv2.imshow('keypoints left image:', cv2.drawKeypoints(left, kp2, None))
+    # cv2.imshow('keypoints right image:', cv2.drawKeypoints(right, kp1, None))
     # cv2.waitKey(0)
     print('aangal keypoints:', len(des1), len(des2))
     match = cv2.BFMatcher()
     matches = match.knnMatch(des1, des2, k=2)
     good = []
     for m, n in matches:
-        if m.distance < 0.5*n.distance:
+        if m.distance < 0.7*n.distance:
             good.append(m)
     print('aantal matches:', len(good))
     MIM_MATCH_COUNT = 10
     if len(good) <= MIM_MATCH_COUNT:
         return None
-    src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
-    dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
+    dst_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
+    src_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
     M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
     return M
 
@@ -107,7 +106,7 @@ def stitch_video(left_video, right_video):
         if M is not None:
             keypoints_found = True
 
-    pano = [stitch_frame((left_video[i], right_video[i]), M, s)[0]]
+    pano = []
     t2 = time.time()
     tijden1 = [t2-t1]
     tijden2, tijden3 = [], []

@@ -8,11 +8,13 @@ from picamera import PiCamera
 from picamera.array import PiRGBArray
 # from pano_def import *
 import time
-import video
+import stitcher
 from queue import LifoQueue
 
 _finish = False
 HEADER = 16
+# IP_CLIENT = "169.254.186.249" #LODE
+IP_CLIENT = "169.254.27.179"
 try:
     PORT = 5050
 
@@ -83,11 +85,11 @@ def handle_client(conn, addr, q):
         # merge the two pictures
         if first_frame:
             first_frame = False
-            # matrix, s = video.eerste_frame((frame, frame2))
-            matrix, _ = video.find_kp_and_matrix((frame, frame2))
-            s = 0
-        if not first_frame:
-            pano = video.match_pano((frame, frame2), matrix, s)
+            matrix, s = stitcher.eerste_frame((frame, frame2))
+            if matrix is not None:
+                first_frame = False
+        else:
+            pano = stitcher.stitch_frame((frame, frame2), matrix, s)
             cv2.imshow('pano', pano)
         # status, result = stitcher.stitch((frame,frame2))
         # if status == 0:
@@ -140,4 +142,3 @@ def start():
 
 print("[STARTING] server is starting...")
 start()
-

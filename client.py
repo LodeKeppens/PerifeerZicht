@@ -11,14 +11,14 @@ import pickle
 
 
 HEADER = 64
-PORT = 5051
+PORT = 5050
 FORMAT = 'utf-8'
 DISCONNECT_MESSAGE = "!DISCONNECT"
 NEW_FRAME_MESSAGE = "!new_frame"
-SERVER = "169.254.186.249"
+SERVER = socket.gethostname()
 ADDR = (SERVER, PORT)
 
-client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+client = socket.socket()
 client.connect(ADDR)
 
 
