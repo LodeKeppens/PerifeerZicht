@@ -1,4 +1,4 @@
-import cv2
+bimport cv2
 import numpy as np
 
 
@@ -61,7 +61,7 @@ def stitch_frame(images, M, s=0):
     step = 1
     for n in range(s, w-step, step):
         x = (n - s) / (w - s)
-        dst[:, n] = cv2.addWeighted(left[:, n:n+step], 1 - x, dst[:, n:n+step], x, 0)
+        dst[:, n:n+step] = cv2.addWeighted(left[:, n:n+step], 1 - x, dst[:, n:n+step], x, 0)
     return dst
 
 
