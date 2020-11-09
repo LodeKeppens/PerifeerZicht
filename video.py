@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import time
+import matplotlib.pyplot as plt
 
 
 def video_ophalen(path):
@@ -15,10 +16,10 @@ def video_ophalen(path):
     return video
 
 
-def video_afspelen(frames):
+def video_afspelen(frames, name='video'):
     for frame in frames:
-        cv2.imshow('video', frame)
-        cv2.waitKey(33)
+        cv2.imshow(name, frame)
+        cv2.waitKey(40)
 
 
 def splits(frames, w):
@@ -37,32 +38,35 @@ def find_kp_and_matrix(images):
     sift = cv2.SIFT_create()
     kp1, des1 = sift.detectAndCompute(gray1, None)
     kp2, des2 = sift.detectAndCompute(gray2, None)
+    # cv2.imshow('keypoints left image:', cv2.drawKeypoints(image2, kp2, None))
+    # cv2.imshow('keypoints right image:', cv2.drawKeypoints(image1, kp1, None))
+    # cv2.waitKey(0)
+    print('aangal keypoints:', len(des1), len(des2))
     match = cv2.BFMatcher()
     matches = match.knnMatch(des1, des2, k=2)
     good = []
     for m, n in matches:
-        if m.distance < n.distance:
+        if m.distance < 0.5*n.distance:
             good.append(m)
-
+    print('aantal matches:', len(good))
     MIM_MATCH_COUNT = 10
     if len(good) <= MIM_MATCH_COUNT:
-        print("not enough keypoints found")
-
+        return None
     src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
     dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
     M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
     return M
 
 
-def match_pano(images, M):
-    (image2, image1) = images
-    h, w, a = image1.shape
-    dst = cv2.warpPerspective(image1, M, (image2.shape[1] + image1.shape[1], image2.shape[0]))
-    s = 0
-    while (s < w) and not np.sum(dst[0:h, s]):
-        s += 1
-    dst[:h, :s] = image2[:h, :s]
-    for n in range(s, w - 1):
+def stitch_frame(images, M, s=0):
+    t1 = time.time()
+    (left, right) = images
+    h, w, a = right.shape
+    dst = cv2.warpPerspective(right, M, (left.shape[1] + right.shape[1], left.shape[0]))
+    t2 = time.time()
+    dst[:h, :s] = left[:h, :s]
+    step = 1
+    for n in range(s, w-1):
         x = (n - s) / (w - s)
         # up = 0
         # while up < h // 2 and not np.sum(dst[up, n]):
@@ -73,34 +77,103 @@ def match_pano(images, M):
         # dst[:up, n], dst[up:down, n], dst[down:, n] = image2[:up, n], \
         #                                               cv2.addWeighted(image2[up:down, n], 1 - x, dst[up:down, n], x, 0), \
         #                                               image2[down:, n]
-        dst[:, n] = cv2.addWeighted(image2[:, n], 1 - x, dst[:, n], x, 0)
-    return dst
+        dst[:, n] = cv2.addWeighted(left[:, n], 1 - x, dst[:, n], x, 0)
+    t3 = time.time()
+    return dst, t2-t1, t3-t2
 
 
-def stitch_image(images):
-    matrix = find_kp_and_matrix(images)
-    pano = match_pano(images, matrix)
-    return pano
+def eerste_frame(images):
+    left, right = images
+    t1 = time.time()
+    matrix = find_kp_and_matrix((left, right))
+    t2 = time.time()
+    if matrix is None:
+        return None, None
+    print('tijd voor transformatiematrix', t2-t1)
+    dst = cv2.warpPerspective(right, matrix, (left.shape[1] + right.shape[1], left.shape[0]))
+    s = 0
+    while (s < 640) and not np.sum(dst[:, s]):
+        s += 1
+    return matrix, s
 
 
 def stitch_video(left_video, right_video):
-    pano = []
-    matrix = find_kp_and_matrix((left_video[0], right_video[0]))
-    new_frame = match_pano((left_video[0], right_video[0]), matrix)
+    t1 = time.time()
+    keypoints_found = False
+    i = -1
+    while not keypoints_found:
+        i += 1
+        M, s = eerste_frame((left_video[i], right_video[i]))
+        if M is not None:
+            keypoints_found = True
+
+    pano = [stitch_frame((left_video[i], right_video[i]), M, s)[0]]
+    t2 = time.time()
+    tijden1 = [t2-t1]
+    tijden2, tijden3 = [], []
     for n in range(0, len(left_video)):
-        new_frame = match_pano((left_video[n], right_video[n]), matrix)
-        pano.append(new_frame[:, :640])
-    return pano
+        t1 = time.time()
+        new_frame, tTrans, tSamen = stitch_frame((left_video[n], right_video[n]), M, s)
+        pano.append(new_frame)
+        tijden1.append(time.time()-t1)
+        tijden2.append(tTrans)
+        tijden3.append(tSamen)
+    # print(tijden1)
+    return pano, tijden1, tijden2, tijden3
 
 
-video = video_ophalen('video/test.3gp')
-left, right = splits(video, 640)
+def stitch_cv2(left_video, right_video):
+    stitcher = cv2.Stitcher.create()
+    t1 = time.time()
+    tijden2 = []
+    for n in range(0, 100):
+        t1 = time.time()
+        new_frame = stitcher.stitch((left_video[n],right_video[n]))
+        pano.append(new_frame)
+        tijden2.append(time.time() - t1)
+    print(tijden2)
+    return pano, tijden2
+
+
+# video = video_ophalen('video/test.3gp')
+# left, right = splits(video, 640)
+right = video_ophalen("video's/vid_L.avi")
+left = video_ophalen("video's/vid_R.avi")
+# video_afspelen(left, 'left')
+# video_afspelen(right, 'right')
+print("met zelf gemaakt programma:\n")
 t1 = time.time()
-pano = stitch_video(left, right)
+pano, tijden1, tijden2, tijden3 = stitch_video(left, right)
 t2 = time.time()
-input("press enter to watch video")
+x = range(len(tijden1))
+# plt.subplot(221)
+# plt.semilogy(x, tijden1, label="cv2.stitch")
+plt.scatter(x,tijden1, label="totaal")
+x = range(len(tijden2))
+plt.scatter(x,tijden2,label="transformatie")
+plt.scatter(x,tijden3,label="samenvoegen")
+plt.legend()
+plt.xlabel("frame")
+plt.ylabel("tijd")
+plt.ylim(0, 0.02)
+plt.xlim(0, len(tijden1))
+plt.show()
+# input("press enter to watch video")
 t4 = time.time()
 video_afspelen(pano)
 t3 = time.time()
-print('this took', t2 - t1, 'seconds, for a video of', t3 - t4, 'seconds')
+# print('this took', t2 - t1, 'seconds, for a video of', t3 - t4, 'seconds')
 cv2.destroyAllWindows()
+# print("met stitcher functie:\n")
+# # input("press enter")
+# pano, tijden2 = stitch_cv2(left, right)
+# # video_afspelen(pano)
+# x = range(len(tijden2))
+# # punten2 = plt.scatter(x,tijden2, marker="*", color="green", label="cv2.stitch")
+# # plt.subplot(221)
+# plt.semilogy(x, tijden2, label="vaste_punten")
+# plt.xlabel("frame")
+# plt.ylabel("tijd [s]")
+# plt.ylim(0.001, 10)
+# plt.xlim(0,len(tijden2))
+# plt.show()
