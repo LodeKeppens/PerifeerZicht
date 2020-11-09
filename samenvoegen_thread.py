@@ -19,8 +19,8 @@ IP_CLIENT = "169.254.27.179"
 try:
     PORT = 5050
 
-    SERVER = socket.gethostbyname(socket.gethostname())
-    ADDR = ("169.254.186.249", PORT)
+    SERVER = "169.254.186.249"
+    ADDR = (SERVER, PORT)
     FORMAT = 'utf-8'
     DISCONNECT_MESSAGE = "!DISCONNECT"
 
@@ -41,10 +41,11 @@ except:
 print("port:", PORT)
 # camera initialization
 cam = PiCamera()
-cam_res = (320,240)
+cam_res = (320, 240)
 cam.resolution = cam_res
 cam.framerate = 24
 rawCapture = PiRGBArray(cam, size=cam_res)
+FRAME_LENGTH = cam_res[0] * cam_res[1] * 3 + 163  # 230563
 
 
 def run_client():
@@ -52,6 +53,7 @@ def run_client():
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy)
     ssh.connect("169.254.130.140", username="pi", password="qwertyui")
     ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command("python Documents/client_no_length.py")
+
 
 def handle_client(conn, addr, q):
     global _finish
@@ -79,9 +81,8 @@ def handle_client(conn, addr, q):
 
         # if message[:len(DISCONNECT_MESSAGE)] == DISCONNECT_MESSAGE:
         #    break
-        message = 230563
 
-        while len(data) < int(message):
+        while len(data) < int(FRAME_LENGTH):
             data += conn.recv(4 * 1024)
         # print(data)
         frame = np.array(pickle.loads(data))
@@ -90,6 +91,7 @@ def handle_client(conn, addr, q):
             matrix, s = stitcher.eerste_frame((frame, frame2))
             if matrix is not None:
                 first_frame = False
+                conn.sendall(pickle.dumps(matrix))
         else:
             pano = stitcher.stitch_frame((frame, frame2), matrix, s)
             cv2.imshow('pano', pano)
@@ -97,7 +99,6 @@ def handle_client(conn, addr, q):
         # if status == 0:
         #     cv2.imshow('result', result)
 
-        # TODO Foto nemen, foto samenvoegen, display
         # cv2.imshow("RECEIVING VIDEO", frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
@@ -124,6 +125,7 @@ def video_stream(q):
     for frame2 in cam.capture_continuous(rawCapture, format="bgr", use_video_port=True):
         q.put(frame2.array)
         rawCapture.truncate(0)
+
 
 def start():
     server.listen()

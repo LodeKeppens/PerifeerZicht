@@ -38,6 +38,9 @@ camera.framerate = 32
 rawCapture = PiRGBArray(camera, size=cam_res)
 # allow the camera to warmup
 time.sleep(0.1)
+
+is_first_frame = True
+LEN_MATRIX = 9
 # capture frames from the camera
 for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
     # grab the raw NumPy array representing the image, then initialize the timestamp
@@ -47,11 +50,19 @@ for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=
     msg = client.recv(HEADER).decode(FORMAT)  # Turns the incoming message
     # from a bytes object to an string.
     if msg == NEW_FRAME_MESSAGE:
-        message = pickle.dumps(image)  # Turns the image into a bytes object.
-        client.sendall(message)
+        if not is_first_frame:
+            message = pickle.dumps(image)  # Turns the image into a bytes object.
+            client.sendall(message)
+
+            data = b""
+            while len(data) < LEN_MATRIX:
+                data += client.recv(4 * 1024)
+            matrix = np.array(pickle.loads(data))
+        else:
+
+
         print(len(message))
     elif msg == DISCONNECT_MESSAGE:
-
         exit(0)
     # show the frame
     key = cv2.waitKey(1) & 0xFF
