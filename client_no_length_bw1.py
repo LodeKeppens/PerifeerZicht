@@ -58,6 +58,7 @@ for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=
             while len(data) < LEN_MATRIX:
                 data += client.recv(4 * 1024)
             matrix = np.array(pickle.loads(data))
+            is_first_frame = False
         else:
             h, w, d = image.shape
             message = cv2.warpPerspective(image, matrix, (2 * w, h))

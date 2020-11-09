@@ -82,19 +82,28 @@ def handle_client(conn, addr, q):
         # if message[:len(DISCONNECT_MESSAGE)] == DISCONNECT_MESSAGE:
         #    break
 
-        while len(data) < int(FRAME_LENGTH):
-            data += conn.recv(4 * 1024)
-        # print(data)
-        frame_client = np.array(pickle.loads(data))
+
         # merge the two pictures
         if is_first_frame:
+            print('receiving the first frame')
+            while len(data) < int(FRAME_LENGTH):
+                data += conn.recv(4 * 1024)
+            frame_client = np.array(pickle.loads(data))
+
             matrix, s = stitcher_bw1.eerste_frame((frame_server, frame_client))
             if matrix is not None:
                 is_first_frame = False
+                print('sending 3x3 transformation matrix')
                 conn.sendall(pickle.dumps(matrix))
         else:
-            pano = stitcher_bw1.stitch_frame_right_warped((frame_server, frame_client), matrix, s)
-            cv2.imshow('pano', pano)
+            print('receiving the next frame')
+            while len(data) < int(2*FRAME_LENGTH):
+                data += conn.recv(4 * 1024)
+            frame_client = np.array(pickle.loads(data))
+
+            print('beginning to stitch')
+            stitched = stitcher_bw1.stitch_frame_right_warped((frame_server, frame_client), matrix, s)
+            cv2.imshow('Stitched', stitched)
         # status, result = stitcher.stitch((frame_client,frame_server))
         # if status == 0:
         #     cv2.imshow('result', result)
