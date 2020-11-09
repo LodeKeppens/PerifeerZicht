@@ -61,7 +61,7 @@ for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=
         else:
             h, w, d = image.shape
             message = cv2.warpPerspective(image, matrix, (2 * w, h))
-            message = pickle.dumps(image)  # Turns the image into a bytes object.
+            message = pickle.dumps(message)  # Turns the image into a bytes object.
             client.sendall(message)
 
         print(len(message))

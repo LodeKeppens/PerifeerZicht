@@ -79,6 +79,9 @@ def stitch_frame_right_warped(images, M, s=0):
     # warpperspective van de rechterfoto
     # al gebeurd
 
+    left, right = images
+    dst = right
+    h, w, d = left.shape
     # voeg de linkerfoto toe op het deel dat niet overlapt
     dst[:h, :s] = left[:h, :s]
 
