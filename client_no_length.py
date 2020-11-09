@@ -15,17 +15,15 @@ FORMAT = 'utf-8'
 DISCONNECT_MESSAGE = "!DISCONNECT"
 NEW_FRAME_MESSAGE = "!new_frame"
 SERVER = "169.254.186.249"
+client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 try:
     PORT = 5050
     ADDR = (SERVER, PORT)
-    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.connect(ADDR)
 except:
     PORT = 5051
     ADDR = (SERVER, PORT)
-    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.connect(ADDR)
-
 
 
 def send(msg):
