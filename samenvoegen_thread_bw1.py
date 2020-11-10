@@ -15,11 +15,12 @@ import paramiko
 _finish = False
 HEADER = 16
 # IP_CLIENT = "169.254.186.249" #LODE
-IP_CLIENT = "169.254.27.179"
+# SERVER = "169.254.186.249" #LODE
+IP_CLIENT = "169.254.27.179" #HEKTOR
+SERVER = "169.254.233.181" #HEKTOR
 try:
     PORT = 5050
 
-    SERVER = "169.254.186.249"
     ADDR = (SERVER, PORT)
     FORMAT = 'utf-8'
     DISCONNECT_MESSAGE = "!DISCONNECT"
@@ -30,8 +31,8 @@ try:
 except:
     PORT = 5051
 
-    SERVER = socket.gethostbyname(socket.gethostname())
-    ADDR = ("169.254.186.249", PORT)
+    #SERVER = socket.gethostbyname(socket.gethostname())
+    ADDR = (SERVER, PORT)
     FORMAT = 'utf-8'
     DISCONNECT_MESSAGE = "!DISCONNECT"
 
@@ -51,8 +52,8 @@ FRAME_LENGTH = cam_res[0] * cam_res[1] * 3 + 163  # 230563
 def run_client():
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy)
-    ssh.connect("169.254.130.140", username="pi", password="qwertyui")
-    ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command("python Documents/client_no_length.py")
+    ssh.connect(IP_CLIENT, username="pi", password="qwertyui")
+    ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command("python Documents/client_no_length_bw1.py")
 
 
 def handle_client(conn, addr, q):
@@ -67,6 +68,7 @@ def handle_client(conn, addr, q):
     is_first_frame = True
     while connected:
         frame_server = q.get()
+        frame_server = cv2.rotate(frame_server, cv2.ROTATE_180) #ENKEL_VOOR_OPSTELLING_HEKTOR
         end = time.time()
         print('totale tijd:', end - start)
         start = end
