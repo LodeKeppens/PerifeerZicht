@@ -56,9 +56,11 @@ def first_frame(q):
     msg = client.recv(HEADER).decode(FORMAT)
     while msg != NEW_FRAME_MESSAGE:
         msg = client.recv(HEADER).decode(FORMAT)
+
     frame = q.get()
     message = pickle.dumps(frame)  # Turns the image into a bytes object.
     client.sendall(message)
+
     data = b""
     while len(data) < LEN_MATRIX:
         data += client.recv(4 * 1024)
