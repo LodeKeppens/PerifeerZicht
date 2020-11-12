@@ -38,7 +38,7 @@ def send(msg):
 camera = PiCamera()
 cam_res = (320, 240)
 camera.resolution = cam_res
-camera.framerate = 32
+camera.framerate = 24
 rawCapture = PiRGBArray(camera, size=cam_res)
 # allow the camera to warmup
 time.sleep(0.1)
@@ -54,13 +54,9 @@ def video_stream(q):
 def first_frame(q):
     LEN_MATRIX = 9
     msg = client.recv(HEADER).decode(FORMAT)
-    while msg != NEW_FRAME_MESSAGE:
-        msg = client.recv(HEADER).decode(FORMAT)
-
     frame = q.get()
-    message = pickle.dumps(frame)  # Turns the image into a bytes object.
-    client.sendall(message)
-
+    message = pickle.dumps(frame) # Turns the image into a bytes object.
+    send(message)
     data = b""
     while len(data) < LEN_MATRIX:
         data += client.recv(4 * 1024)
@@ -71,7 +67,6 @@ def first_frame(q):
 def handle_server(q):
     connected = True
     matrix = first_frame(q)
-    print(matrix)
     tijden = {'totaal': [], 'foto_nemen': [], 'wachten_op_vraag': [], 'send': [], 'transformatie': []}
     start = time.time()
     t2 = start
@@ -81,6 +76,7 @@ def handle_server(q):
         # if n > 100:
         #     break
         end = time.time()
+        print(end-start)
         tijden['totaal'].append(end - start)
         tijden['foto_nemen'].append(end - t2)
         if time.time() - t1 > 10:
@@ -101,7 +97,6 @@ def handle_server(q):
             t1 = time.time()
             tijden['send'].append(t1 - t2)
             n += 1
-
             print(len(message))
         elif msg == DISCONNECT_MESSAGE:
             exit(0)
@@ -128,6 +123,9 @@ def start():
     cameraThread = threading.Thread(target=video_stream, args=(q,))
     cameraThread.start()
     thread.start()
+    while True:
+        pass
+
 
 print("[STARTING] client is starting...")
 start()
