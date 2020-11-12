@@ -13,28 +13,19 @@ import queue
 
 _finish = False
 HEADER = 16
+SERVER = "169.254.186.249"
+FORMAT = 'utf-8'
+DISCONNECT_MESSAGE = "!DISCONNECT"
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 try:
     PORT = 5050
-
-    SERVER = socket.gethostbyname(socket.gethostname())
-    ADDR = ("169.254.186.249", PORT)
-    FORMAT = 'utf-8'
-    DISCONNECT_MESSAGE = "!DISCONNECT"
-
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    #server.close()
+    ADDR = (SERVER, PORT)
     server.bind(ADDR)
 except:
     PORT = 5051
-
-    SERVER = socket.gethostbyname(socket.gethostname())
-    ADDR = ("169.254.186.249", PORT)
-    FORMAT = 'utf-8'
-    DISCONNECT_MESSAGE = "!DISCONNECT"
-
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    #server.close()
+    ADDR = (SERVER, PORT)
     server.bind(ADDR)
+
 print("port:", PORT)
 # camera initialization
 cam = PiCamera()

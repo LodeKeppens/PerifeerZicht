@@ -6,20 +6,21 @@ import numpy as np
 import pickle
 from picamera import PiCamera
 from picamera.array import PiRGBArray
-# from pano_def import *
 import time
-import stitcher
+import stitcher_bw1
 from queue import LifoQueue
 import paramiko
+import matplotlib.pyplot as plt
 
 _finish = False
 HEADER = 16
 # IP_CLIENT = "169.254.186.249" #LODE
-IP_CLIENT = "169.254.27.179"
+# SERVER = "169.254.186.249" #LODE
+IP_CLIENT = "169.254.27.179" #HEKTOR
+SERVER = "169.254.233.181" #HEKTOR
 try:
     PORT = 5050
 
-    SERVER = "169.254.186.249"
     ADDR = (SERVER, PORT)
     FORMAT = 'utf-8'
     DISCONNECT_MESSAGE = "!DISCONNECT"
@@ -30,8 +31,8 @@ try:
 except:
     PORT = 5051
 
-    SERVER = socket.gethostbyname(socket.gethostname())
-    ADDR = ("169.254.186.249", PORT)
+    #SERVER = socket.gethostbyname(socket.gethostname())
+    ADDR = (SERVER, PORT)
     FORMAT = 'utf-8'
     DISCONNECT_MESSAGE = "!DISCONNECT"
 
@@ -51,8 +52,8 @@ FRAME_LENGTH = cam_res[0] * cam_res[1] * 3 + 163  # 230563
 def run_client():
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy)
-    ssh.connect("169.254.130.140", username="pi", password="qwertyui")
-    ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command("python Documents/client_no_length.py")
+    ssh.connect(IP_CLIENT, username="pi", password="qwertyui")
+    ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command("python Documents/client_no_length_bw1.py")
 
 
 def handle_client(conn, addr, q):
@@ -64,12 +65,17 @@ def handle_client(conn, addr, q):
     data = b""
     start = time.time()
     payload_size = struct.calcsize("Q")
-    first_frame = True
+    tijden = {'totaal':[],'foto_nemen':[],'ask_frame':[],'wait_for_data':[],'recieve_frame':[],'stitch':[],'show':[]}
+    is_first_frame = True
     while connected:
         end = time.time()
-        print('totale tijd:', end - start)
+        tijden['totaal'].append(end-start)
+        # print('totale tijd:', end - start)
         start = end
-        frame2 = q.get()
+        frame_server = q.get()
+        frame_server = cv2.rotate(frame_server, cv2.ROTATE_180) #ENKEL_VOOR_OPSTELLING_HEKTOR
+        t1 = time.time()
+        tijden['foto_nemen'].append(t1-end)
         data = b""
         # payload_size = struct.calcsize("Q")
         send(conn, "!new_frame")
@@ -80,29 +86,56 @@ def handle_client(conn, addr, q):
 
         # if message[:len(DISCONNECT_MESSAGE)] == DISCONNECT_MESSAGE:
         #    break
+        t2 = time.time()
 
-        while len(data) < int(FRAME_LENGTH):
-            data += conn.recv(4 * 1024)
-        # print(data)
-        frame = np.array(pickle.loads(data))
         # merge the two pictures
-        if first_frame:
-            matrix, s = stitcher.eerste_frame((frame, frame2))
+        if is_first_frame:
+            print('receiving the first frame')
+            while len(data) < int(FRAME_LENGTH):
+                data += conn.recv(4 * 1024)
+            frame_client = np.array(pickle.loads(data))
+
+            matrix, s = stitcher_bw1.eerste_frame((frame_server, frame_client))
             if matrix is not None:
-                first_frame = False
+                is_first_frame = False
+                print('sending 3x3 transformation matrix')
                 conn.sendall(pickle.dumps(matrix))
+            eerste_frame = time.time()-t2
         else:
-            pano = stitcher.stitch_frame((frame, frame2), matrix, s)
-            cv2.imshow('pano', pano)
-        # status, result = stitcher.stitch((frame,frame2))
+            print('receiving the next frame')
+            while len(data) < int(2*FRAME_LENGTH-163):
+                ontvangen = conn.recv(4 * 1024)
+                if data != b"" and len(ontvangen)>0:
+                    t3 = time.time()
+                    tijden['wait_for_data'].append(t3-t2)
+                data += conn.recv(4 * 1024)
+            frame_client = np.array(pickle.loads(data))
+            t1 = time.time()
+            tijden['recieve_frame'].append(t1-t3)
+            print('beginning to stitch')
+            stitched = stitcher_bw1.stitch_frame_right_warped((frame_server, frame_client), matrix, s)
+            t2 = time.time()
+            tijden['stitch'].append(t2-t1)
+            # cv2.imshow('Stitched', cv2.resize(stitched,(1280,480)))
+            t1 = time.time()
+            tijden['show'].append(t1-t2)
+        # status, result = stitcher.stitch((frame_client,frame_server))
         # if status == 0:
         #     cv2.imshow('result', result)
 
-        # cv2.imshow("RECEIVING VIDEO", frame)
+        # cv2.imshow("RECEIVING VIDEO", frame_client)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
     cv2.destroyAllWindows()
     send(conn, DISCONNECT_MESSAGE)
+    for key, value in tijden:
+        plt.scatter(range(len(value)), tijden[key], label=key)
+    plt.legend()
+    plt.xlabel("frame")
+    plt.ylabel("tijd")
+    plt.ylim(0, 0.1)
+    plt.xlim(0, len(x))
+    plt.show()
     # conn.close()
     server.close()
     _finish = True
@@ -130,7 +163,7 @@ def start():
     server.listen()
     print(f"[LISTENING] Server is listening on {SERVER}")
     q = LifoQueue(maxsize=1)
-    run_client()
+    # run_client()
     while True:
         conn, addr = server.accept()
         thread = threading.Thread(target=handle_client, args=(conn, addr, q))
