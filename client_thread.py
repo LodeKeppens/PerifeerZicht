@@ -129,6 +129,8 @@ def start():
     cameraThread.start()
     thread.start()
 
+
+
 print("[STARTING] client is starting...")
 start()
 disc_msg = DISCONNECT_MESSAGE

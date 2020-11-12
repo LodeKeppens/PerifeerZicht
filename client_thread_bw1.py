@@ -81,8 +81,8 @@ def handle_server(q):
 
 def video_stream(q):
     time.sleep(0.1)
-    for frame2 in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
-        q.put(frame2.array)
+    for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
+        q.put(frame.array)
         rawCapture.truncate(0)
 
 
@@ -93,14 +93,17 @@ def start():
     cameraThread.start()
     thread.start()
 
-for key in tijden:
-    plt.scatter(range(len(tijden[key])), tijden[key], label=key)
-plt.legend()
-plt.xlabel("frame")
-plt.ylabel("tijd")
-plt.ylim(0, 0.12)
-# plt.xlim(0, len(x))
-plt.show()
+# for key in tijden:
+#     plt.scatter(range(len(tijden[key])), tijden[key], label=key)
+# plt.legend()
+# plt.xlabel("frame")
+# plt.ylabel("tijd")
+# plt.ylim(0, 0.12)
+# # plt.xlim(0, len(x))
+# plt.show()
+
+
+start()
 
 disc_msg = DISCONNECT_MESSAGE
 send_disc_msg = str(disc_msg).encode(FORMAT)
