@@ -13,7 +13,7 @@ import threading
 # import struct
 
 
-HEADER = 11
+HEADER = 16
 FORMAT = 'utf-8'
 DISCONNECT_MESSAGE = "!DISCONNECT"
 NEW_FRAME_MESSAGE = "!new_frame"
@@ -39,16 +39,17 @@ camera = PiCamera()
 cam_res = (320, 240)
 camera.resolution = cam_res
 camera.framerate = 24
+camera.start_preview()
 rawCapture = PiRGBArray(camera, size=cam_res)
-# allow the camera to warmup
-time.sleep(0.1)
+# output = np.empty((240, 320, 3), dtype=np.uint8)
 
 
 def video_stream(q):
     time.sleep(0.1)
-    for frame2 in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
-        q.put(frame2.array)
+    for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
+        q.put(frame.array)
         rawCapture.truncate(0)
+        # rawCapture.seek(0)
 
 
 def first_frame(q):
@@ -102,8 +103,6 @@ def handle_server(q):
             exit(0)
         # show the frame
         key = cv2.waitKey(1) & 0xFF
-        # clear the stream in preparation for the next frame
-        rawCapture.truncate(0)
         # if the `q` key was pressed, break from the loop
         t2 = time.time()
 
