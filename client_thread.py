@@ -13,6 +13,7 @@ import threading
 # import struct
 
 
+# setup a connection with the server
 HEADER = 16
 FORMAT = 'utf-8'
 DISCONNECT_MESSAGE = "!DISCONNECT"
@@ -41,21 +42,29 @@ camera.resolution = cam_res
 camera.framerate = 24
 camera.start_preview()
 rawCapture = PiRGBArray(camera, size=cam_res)
-# output = np.empty((240, 320, 3), dtype=np.uint8)
+time.sleep(0.1)
 
 
-def video_stream(q):
-    time.sleep(0.1)
+def video_stream(q,M):
+    """
+    :param q: queue
+    continiously takes pictures and puts them in q
+    """
+    print('video stream')
     for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
-        q.put(frame.array)
+        q.put(cv2.warpPerspective(frame.array, M, (2 * cam_res[0], cam_res[1])))
         rawCapture.truncate(0)
-        # rawCapture.seek(0)
 
 
-def first_frame(q):
+def first_frame():
+    """
+    :param q: queue
+    first sends a frame to the server, then server sends back the transformation matrix
+    """
     LEN_MATRIX = 9
     msg = client.recv(HEADER).decode(FORMAT)
-    frame = q.get()
+    frame = np.empty((cam_res[1],cam_res[0],3), dtype=np.uint8)
+    camera.capture(frame, 'bgr')
     message = pickle.dumps(frame) # Turns the image into a bytes object.
     send(message)
     data = b""
@@ -67,10 +76,9 @@ def first_frame(q):
 
 def handle_server(q):
     connected = True
-    matrix = first_frame(q)
+    print('first frame')
     tijden = {'totaal': [], 'foto_nemen': [], 'wachten_op_vraag': [], 'send': [], 'transformatie': []}
     start = time.time()
-    t2 = start
     t1 = start
     n = 0
     while connected:
@@ -79,32 +87,26 @@ def handle_server(q):
         end = time.time()
         print(end-start)
         tijden['totaal'].append(end - start)
-        tijden['foto_nemen'].append(end - t2)
-        if time.time() - t1 > 10:
+        if time.time() - t1 > 3:
             exit(0)
         start = end
         msg = client.recv(HEADER).decode(FORMAT)  # Turns the incoming message
         # from a bytes object to an string.
         if msg == NEW_FRAME_MESSAGE:
             t1 = time.time()
-            frame = q.get()
             tijden['wachten_op_vraag'].append(t1 - start)
-            h, w, d = frame.shape
-            message = cv2.warpPerspective(frame, matrix, (2 * w, h))
-            t2 = time.time()
-            tijden['transformatie'].append(t2 - t1)
-            message = pickle.dumps(message)  # Turns the image into a bytes object.
+            message = pickle.dumps(q.get())  # Turns the image into a bytes object.
+            t3 = time.time()
+            tijden['foto_nemen'].append(t3 - t1)
             client.sendall(message)
-            t1 = time.time()
-            tijden['send'].append(t1 - t2)
+            t2 = time.time()
+            tijden['send'].append(t3 - t2)
             n += 1
-            print(len(message))
         elif msg == DISCONNECT_MESSAGE:
             exit(0)
         # show the frame
         key = cv2.waitKey(1) & 0xFF
         # if the `q` key was pressed, break from the loop
-        t2 = time.time()
 
     # for key in tijden:
     #     plt.scatter(range(len(tijden[key])), tijden[key], label=key)
@@ -117,19 +119,21 @@ def handle_server(q):
 
 
 def start():
+    matrix = first_frame()
     q = LifoQueue(maxsize=1)
     thread = threading.Thread(target=handle_server, args=(q,))
-    cameraThread = threading.Thread(target=video_stream, args=(q,))
+    cameraThread = threading.Thread(target=video_stream, args=(q, matrix))
+    print('start processes')
     cameraThread.start()
     thread.start()
-    while True:
-        pass
+    thread.join()
 
 
-print("[STARTING] client is starting...")
-start()
-disc_msg = DISCONNECT_MESSAGE
-send_disc_msg = str(disc_msg).encode(FORMAT)
-send_disc_msg += b' ' * (HEADER - len(send_disc_msg))
-client.send(send_disc_msg)
-cv2.destroyAllWindows()
+if __name__ == '__main__':
+    print("[STARTING] client is starting...")
+    start()
+    # disc_msg = DISCONNECT_MESSAGE
+    # send_disc_msg = str(disc_msg).encode(FORMAT)
+    # send_disc_msg += b' ' * (HEADER - len(send_disc_msg))
+    # client.send(send_disc_msg)
+    cv2.destroyAllWindows()
