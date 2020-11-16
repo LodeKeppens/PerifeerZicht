@@ -1,5 +1,4 @@
 import socket
-# import threading
 import multiprocessing as mp
 import cv2
 import numpy as np
@@ -8,7 +7,6 @@ from picamera import PiCamera
 from picamera.array import PiRGBArray
 import time
 import stitcher_bw1
-# from queue import LifoQueue
 import paramiko
 import matplotlib.pyplot as plt
 
@@ -117,10 +115,17 @@ def start():
     clietThread.start()
     thread.start()
     # print(f"[ACTIVE CONNECTIONS] {threading.activeCount() - 1}")
+    thread.terminate()
+    clietThread.terminate()
+    cameraThread.terminate()
     thread.join()
+    cameraThread.join()
+    clietThread.join()
 
 
 if __name__ == '__main__':
+    _FINISH = False
+    _START = False
     # initialize connection
     HEADER = 16
     # IP_CLIENT = "169.254.186.249" #LODE
