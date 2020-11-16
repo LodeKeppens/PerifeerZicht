@@ -66,7 +66,7 @@ def stitch_frame(images, M, s=0):
 
 
 
-def stitch_frame_right_warped(images, M, s=0):
+def stitch_frame_right_warped(images, s):
     """
     :param images: tuple met linker- en rechterfoto, is belangrijk!
     :param M: transformatiematrix
@@ -78,15 +78,14 @@ def stitch_frame_right_warped(images, M, s=0):
 
     # warpperspective van de rechterfoto
     # al gebeurd
-
-    left, right = images
-    dst = right
+    left, dst = images
     h, w, d = left.shape
+
     # voeg de linkerfoto toe op het deel dat niet overlapt
-    dst[:h, :s] = left[:h, :s]
+    dst[:, :s] = left[:, :s]
 
     # voeg de foto's samen in het overlappend deel zodat een zachte overgang ontstaat
-    step = 1
+    step = 5
     for n in range(s, w-step, step):
         x = (n - s) / (w - s)
         dst[:, n:n+step] = cv2.addWeighted(left[:, n:n+step], 1 - x, dst[:, n:n+step], x, 0)
