@@ -10,26 +10,6 @@ import matplotlib.pyplot as plt
 from queue import LifoQueue
 import threading
 
-# import struct
-
-
-# setup a connection with the server
-HEADER = 16
-FORMAT = 'utf-8'
-DISCONNECT_MESSAGE = "!DISCONNECT"
-NEW_FRAME_MESSAGE = "!new_frame"
-# SERVER = "169.254.186.249" #LODE
-SERVER = "169.254.233.181"  # HEKTOR
-client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-try:
-    PORT = 5050
-    ADDR = (SERVER, PORT)
-    client.connect(ADDR)
-except:
-    PORT = 5051
-    ADDR = (SERVER, PORT)
-    client.connect(ADDR)
-
 
 def send(msg):
     client.sendall(msg)
@@ -54,6 +34,8 @@ def video_stream(q,M):
     for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
         q.put(cv2.warpPerspective(frame.array, M, (2 * cam_res[0], cam_res[1])))
         rawCapture.truncate(0)
+        if _FINISH:
+            break
 
 
 def first_frame():
@@ -63,10 +45,12 @@ def first_frame():
     """
     LEN_MATRIX = 9
     msg = client.recv(HEADER).decode(FORMAT)
-    frame = np.empty((cam_res[1],cam_res[0],3), dtype=np.uint8)
+    frame = np.empty((cam_res[1], cam_res[0], 3), dtype=np.uint8)
     camera.capture(frame, 'bgr')
+    print('send message')
     message = pickle.dumps(frame) # Turns the image into a bytes object.
     send(message)
+    print(len(message))
     data = b""
     while len(data) < LEN_MATRIX:
         data += client.recv(4 * 1024)
@@ -76,7 +60,6 @@ def first_frame():
 
 def handle_server(q):
     connected = True
-    print('first frame')
     tijden = {'totaal': [], 'foto_nemen': [], 'wachten_op_vraag': [], 'send': [], 'transformatie': []}
     start = time.time()
     t1 = start
@@ -100,25 +83,28 @@ def handle_server(q):
             tijden['foto_nemen'].append(t3 - t1)
             client.sendall(message)
             t2 = time.time()
-            tijden['send'].append(t3 - t2)
+            tijden['send'].append(t2 - t3)
             n += 1
         elif msg == DISCONNECT_MESSAGE:
-            exit(0)
-        # show the frame
-        key = cv2.waitKey(1) & 0xFF
+            break
+
         # if the `q` key was pressed, break from the loop
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
 
     # for key in tijden:
     #     plt.scatter(range(len(tijden[key])), tijden[key], label=key)
     # plt.legend()
     # plt.xlabel("frame")
     # plt.ylabel("tijd")
-    # plt.ylim(0, 0.12)
-    # # plt.xlim(0, len(x))
+    # plt.ylim(0, 0.1)
     # plt.show()
+    exit(0)
 
 
 def start():
+    global _FINISH
+    print('first frame')
     matrix = first_frame()
     q = LifoQueue(maxsize=1)
     thread = threading.Thread(target=handle_server, args=(q,))
@@ -127,9 +113,30 @@ def start():
     cameraThread.start()
     thread.start()
     thread.join()
+    _FINISH = True
+    cameraThread.join()
 
 
 if __name__ == '__main__':
+    _FINISH = False
+    # setup a connection with the server
+    HEADER = 16
+    FORMAT = 'utf-8'
+    DISCONNECT_MESSAGE = "!DISCONNECT"
+    NEW_FRAME_MESSAGE = "!new_frame"
+    # SERVER = "169.254.186.249" #LODE
+    SERVER = "169.254.233.181"  # HEKTOR
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        PORT = 5050
+        ADDR = (SERVER, PORT)
+        client.connect(ADDR)
+    except:
+        PORT = 5051
+        ADDR = (SERVER, PORT)
+        client.connect(ADDR)
+    print(f'[CONNECTED] client is connected with {SERVER}')
+
     print("[STARTING] client is starting...")
     start()
     # disc_msg = DISCONNECT_MESSAGE
