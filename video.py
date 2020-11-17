@@ -113,12 +113,74 @@ def stitch_video(left_video, right_video):
     for n in range(0, len(left_video)):
         t1 = time.time()
         new_frame, tTrans, tSamen = stitch_frame((left_video[n], right_video[n]), M, s)
+        cv2.imshow('video',new_frame)
         pano.append(new_frame)
         tijden1.append(time.time()-t1)
         tijden2.append(tTrans)
         tijden3.append(tSamen)
     # print(tijden1)
     return pano, tijden1, tijden2, tijden3
+
+
+
+def stitch_frame_pyramids(images, M, s=0):
+    t1 = time.time()
+    (left, right) = images
+    h, w, a = right.shape
+    dst = cv2.warpPerspective(right, M, (left.shape[1] + right.shape[1], left.shape[0]))
+    t2 = time.time()
+    dst[:h, :s] = left[:h, :s]
+
+    apple_orange = np.hstack((apple[:, :256], orange[:, 256:]))
+
+    # generate Gaussian pyramid for apple
+    apple_copy = apple.copy()
+    gp_apple = [apple_copy]
+    for i in range(6):
+        apple_copy = cv2.pyrDown(apple_copy)
+        gp_apple.append(apple_copy)
+
+    # generate Gaussian pyramid for orange
+    orange_copy = orange.copy()
+    gp_orange = [orange_copy]
+    for i in range(6):
+        orange_copy = cv2.pyrDown(orange_copy)
+        gp_orange.append(orange_copy)
+
+    # generate Laplacian Pyramid for apple
+    apple_copy = gp_apple[5]
+    lp_apple = [apple_copy]
+    for i in range(5, 0, -1):
+        gaussian_expanded = cv2.pyrUp(gp_apple[i])
+        laplacian = cv2.subtract(gp_apple[i - 1], gaussian_expanded)
+        lp_apple.append(laplacian)
+
+    # generate Laplacian Pyramid for orange
+    orange_copy = gp_orange[5]
+    lp_orange = [orange_copy]
+    for i in range(5, 0, -1):
+        gaussian_expanded = cv2.pyrUp(gp_orange[i])
+        laplacian = cv2.subtract(gp_orange[i - 1], gaussian_expanded)
+        lp_orange.append(laplacian)
+
+    # Now add left and right halves of images in each level
+    apple_orange_pyramid = []
+    n = 0
+    for apple_lap, orange_lap in zip(lp_apple, lp_orange):
+        n += 1
+        cols, rows, ch = apple_lap.shape
+        laplacian = np.hstack((apple_lap[:, 0:int(cols / 2)], orange_lap[:, int(cols / 2):]))
+        apple_orange_pyramid.append(laplacian)
+    # now reconstruct
+    apple_orange_reconstruct = apple_orange_pyramid[0]
+    for i in range(1, 6):
+        apple_orange_reconstruct = cv2.pyrUp(apple_orange_reconstruct)
+        apple_orange_reconstruct = cv2.add(apple_orange_pyramid[i], apple_orange_reconstruct)
+
+
+
+    t3 = time.time()
+    return dst, t2-t1, t3-t2
 
 
 def stitch_cv2(left_video, right_video):
@@ -136,8 +198,8 @@ def stitch_cv2(left_video, right_video):
 
 # video = video_ophalen('video/test.3gp')
 # left, right = splits(video, 640)
-right = video_ophalen("video's/vid_L.avi")
-left = video_ophalen("video's/vid_R.avi")
+right = video_ophalen("video's/vid_R.avi")
+left = video_ophalen("video's/vid_L.avi")
 # video_afspelen(left, 'left')
 # video_afspelen(right, 'right')
 print("met zelf gemaakt programma:\n")
