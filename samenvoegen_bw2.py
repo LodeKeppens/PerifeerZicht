@@ -21,7 +21,7 @@ def run_client():
 def first_frame(conn, q):
     # get frames
     send(conn, "!new_frame")
-    frame_server = cv2.rotate(q.get(), cv2.ROTATE_180)
+    frame_server = q.get()
     data = b""
     print('receiving the first frame')
     while len(data) < int(FRAME_LENGTH):
@@ -43,18 +43,20 @@ def handle_client(conn, q_server, q_client):
     start = time.time()
     print('first frame')
     s = first_frame(conn, q_server)
+    clietThread = mp.Process(target=video_client, args=(q_client, conn))
+    clietThread.start()
     while connected:
         end = time.time()
         tijden['totaal'].append(end-start)
         start = end
 
-        print('get frames')
+        # get frames
         frame_server = q_server.get()
         frame_client = q_client.get()
         t1 = time.time()
         tijden['fotos_ophalen'].append(t1-start)
 
-        print('merge the pictures')
+        # merge the pictures
         stitched = stitcher_bw1.stitch_frame_right_warped((frame_server, frame_client), s)
         t2 = time.time()
         tijden['stitch'].append(t2-t1)
@@ -63,10 +65,22 @@ def handle_client(conn, q_server, q_client):
         tijden['show'].append(t1-t2)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
+        if _FINISH:
+            break
     cv2.destroyAllWindows()
     send(conn, DISCONNECT_MESSAGE)
     server.close()
-    exit(0)
+    gemiddeld = sum(tijden['totaal'])/len(tijden['totaal'])
+    print(gemiddeld)
+    for key in tijden:
+        plt.scatter(range(len(tijden[key])), tijden[key], label=key)
+    plt.legend()
+    plt.xlabel("frame")
+    plt.ylabel("tijd")
+    plt.ylim(0, 0.1)
+    plt.show()
+    clietThread.terminate()
+    clietThread.join()
 
 
 def send(conn, msg):
@@ -86,8 +100,9 @@ def video_stream(q):
         t = time.time()
         q.put(cv2.rotate(frame2.array, cv2.ROTATE_180))
         tijden['new_frame_server'].append(time.time()-t)
-        print('frame server')
         rawCapture.truncate(0)
+        if _FINISH:
+            break
 
 
 def video_client(q, conn):
@@ -96,10 +111,9 @@ def video_client(q, conn):
         data = b""
         send(conn, "!new_frame")
         while len(data) < int(2 * FRAME_LENGTH - 163):
-            data += conn.recv(4 * 1024)
+            data += conn.recv(2 * FRAME_LENGTH - 163)
         q.put(np.array(pickle.loads(data)))
         tijden['new_frame_client'].append(time.time()-t)
-        print('frame client')
 
 
 def start():
@@ -110,17 +124,12 @@ def start():
     print('server accepted')
     thread = mp.Process(target=handle_client, args=(conn, q_server, q_client))
     cameraThread = mp.Process(target=video_stream, args=(q_server,))
-    clietThread = mp.Process(target=video_client, args=(q_client, conn))
     cameraThread.start()
-    clietThread.start()
     thread.start()
     # print(f"[ACTIVE CONNECTIONS] {threading.activeCount() - 1}")
-    thread.terminate()
-    clietThread.terminate()
-    cameraThread.terminate()
     thread.join()
+    cameraThread.terminate()
     cameraThread.join()
-    clietThread.join()
 
 
 if __name__ == '__main__':
@@ -153,10 +162,3 @@ if __name__ == '__main__':
     print("[STARTING] server is starting...")
     tijden = {'totaal':[],'fotos_ophalen':[],'stitch':[],'show':[],'new_frame_server':[],'new_frame_client':[]}
     start()
-    for key in tijden:
-        plt.scatter(range(len(tijden[key])), tijden[key], label=key)
-    plt.legend()
-    plt.xlabel("frame")
-    plt.ylabel("tijd")
-    plt.ylim(0, 0.1)
-    plt.show()
