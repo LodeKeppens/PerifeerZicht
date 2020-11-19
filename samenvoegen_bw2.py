@@ -76,7 +76,7 @@ def handle_client(conn, q_server, q_client):
         for (x, y, w, h) in lowerbody:
             cv2.rectangle(stitched, (x, y), (x + w, y + h), (12, 150, 100), 2)
         t3 = time.time()
-
+        tijden['cascades'].append(t3-t2)
         cv2.imshow('Stitched', stitched)
         t1 = time.time()
         tijden['show'].append(t1-t3)
@@ -178,5 +178,5 @@ if __name__ == '__main__':
     cam_res = (320, 240)
     FRAME_LENGTH = cam_res[0] * cam_res[1] * 3 + 163  # 230563
     print("[STARTING] server is starting...")
-    tijden = {'totaal':[],'fotos_ophalen':[],'stitch':[],'show':[],'new_frame_server':[],'new_frame_client':[]}
+    tijden = {'totaal':[],'fotos_ophalen':[],'stitch':[],'show':[],'new_frame_server':[],'new_frame_client':[], 'cascades':[]}
     start()
