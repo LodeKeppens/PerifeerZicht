@@ -43,8 +43,12 @@ def handle_client(conn, q_server, q_client):
     start = time.time()
     print('first frame')
     s = first_frame(conn, q_server)
-    clietThread = mp.Process(target=video_client, args=(q_client, conn))
-    clietThread.start()
+    clientThread = mp.Process(target=video_client, args=(q_client, conn))
+    clientThread.start()
+
+    full_cascade = cv2.CascadeClassifier('D:/DataScienceCollection/OpenCV/haarcascades/haarcascade_fullbody.xml')
+    upper_cascade = cv2.CascadeClassifier('D:/DataScienceCollection/OpenCV/haarcascades/haarcascade_upperbody.xml')
+    lower_cascade = cv2.CascadeClassifier('D:/DataScienceCollection/OpenCV/haarcascades/haarcascade_lowerbody.xml')
     while connected:
         end = time.time()
         tijden['totaal'].append(end-start)
@@ -60,9 +64,23 @@ def handle_client(conn, q_server, q_client):
         stitched = stitcher_bw1.stitch_frame_right_warped((frame_server, frame_client), s)
         t2 = time.time()
         tijden['stitch'].append(t2-t1)
+
+        gray = cv2.cvtColor(stitched, cv2.COLOR_BGR2GRAY)
+        fullbody = full_cascade.detectMultiScale(gray, 1.1, 4)
+        upperbody = upper_cascade.detectMultiScale(gray, 1.1, 4)
+        lowerbody = lower_cascade.detectMultiScale(gray, 1.1, 3)
+        for (x, y, w, h) in fullbody:
+            cv2.rectangle(stitched, (x, y), (x + w, y + h), (12, 150, 100), 2)
+        for (x, y, w, h) in upperbody:
+            cv2.rectangle(stitched, (x, y), (x + w, y + h), (12, 150, 100), 2)
+        for (x, y, w, h) in lowerbody:
+            cv2.rectangle(stitched, (x, y), (x + w, y + h), (12, 150, 100), 2)
+        t3 = time.time()
+
         cv2.imshow('Stitched', stitched)
         t1 = time.time()
-        tijden['show'].append(t1-t2)
+        tijden['show'].append(t1-t3)
+        # tijden['show'].append(t1-t2)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
         if _FINISH:
@@ -79,8 +97,8 @@ def handle_client(conn, q_server, q_client):
     plt.ylabel("tijd")
     plt.ylim(0, 0.1)
     plt.show()
-    clietThread.terminate()
-    clietThread.join()
+    clientThread.terminate()
+    clientThread.join()
 
 
 def send(conn, msg):
