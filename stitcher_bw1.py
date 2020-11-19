@@ -81,14 +81,13 @@ def stitch_frame_right_warped(images, s):
     left, dst = images
     h, w, d = left.shape
 
-    # voeg de linkerfoto toe op het deel dat niet overlapt
-    dst[:, :s] = left[:, :s]
-
-    # voeg de foto's samen in het overlappend deel zodat een zachte overgang ontstaat
-    step = 5
-    for n in range(s, w-step, step):
-        x = (n - s) / (w - s)
-        dst[:, n:n+step] = cv2.addWeighted(left[:, n:n+step], 1 - x, dst[:, n:n+step], x, 0)
+    # voeg de foto's samen en maak zachte overgang op grens tussen foto's
+    delta = 50
+    dst[:, :w-delta] = left[:, :w-delta]
+    for d in range(delta):
+        n = w-d-1
+        x = d/delta
+        dst[:, n] = cv2.addWeighted(left[:, n], x, dst[:, n], 1-x, 0)
     return dst
 
 
