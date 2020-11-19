@@ -45,7 +45,7 @@ def find_kp_and_matrix(images):
     matches = match.knnMatch(des1, des2, k=2)
     good = []
     for m, n in matches:
-        if m.distance < 0.7 * n.distance:
+        if m.distance < 0.7*n.distance:
             good.append(m)
     print('aantal matches:', len(good))
     MIM_MATCH_COUNT = 10
@@ -65,7 +65,7 @@ def stitch_frame(images, M, s=0):
     t2 = time.time()
     dst[:h, :s] = left[:h, :s]
     step = 1
-    for n in range(s, w - 1):
+    for n in range(s, w-1):
         x = (n - s) / (w - s)
         # up = 0
         # while up < h // 2 and not np.sum(dst[up, n]):
@@ -78,50 +78,7 @@ def stitch_frame(images, M, s=0):
         #                                               image2[down:, n]
         dst[:, n] = cv2.addWeighted(left[:, n], 1 - x, dst[:, n], x, 0)
     t3 = time.time()
-    return dst, t2 - t1, t3 - t2
-
-
-def stitch_frame(images, M, s=0, pos_left_bottom_corner = (0,0)):
-    t1 = time.time()
-    (left, right) = images
-    h, w, a = right.shape
-    dst = cv2.warpPerspective(right, M, (left.shape[1] + right.shape[1], left.shape[0]))
-    t2 = time.time()
-    k = 0
-    dst[:h, :s + k] = left[:h, :s + k]
-
-
-    cv2.circle(dst,pos_left_bottom_corner,5,(0,0,255),thickness=2)
-
-    #
-    # b = find_first_nonzero_pixel_in_col(dst, pos_left_bottom_corner[1] + 1)
-    # a = pos_left_bottom_corner[0]
-    # slope = b - a
-    # print('slope:', slope)
-    # print('a:',a)
-    # print('b:',b)
-    # print('h,w,a:', h,w,a)
-    # print()
-    # for row in range(a, h):
-    #     for col in range(pos_left_bottom_corner[1],pos_left_bottom_corner[1]+row//slope):
-    #         dst[row,col] = left[row,col]
-
-
-    step = 1
-    # for n in range(s, w-1):
-    #     x = (n - s) / (w - s)
-    # up = 0
-    # while up < h // 2 and not np.sum(dst[up, n]):
-    #     up += 1
-    # down = h - 1
-    # while down > h // 2 and not np.sum(dst[down, n]):
-    #     down -= 1
-    # dst[:up, n], dst[up:down, n], dst[down:, n] = image2[:up, n], \
-    #                                               cv2.addWeighted(image2[up:down, n], 1 - x, dst[up:down, n], x, 0), \
-    #                                               image2[down:, n]
-    # dst[:, n] = cv2.addWeighted(left[:, n], 1 - x, dst[:, n], x, 0)
-    t3 = time.time()
-    return dst, t2 - t1, t3 - t2
+    return dst, t2-t1, t3-t2
 
 
 def eerste_frame(images):
@@ -131,45 +88,13 @@ def eerste_frame(images):
     t2 = time.time()
     if matrix is None:
         return None, None
-    print('tijd voor transformatiematrix', t2 - t1)
+    print('tijd voor transformatiematrix', t2-t1)
     dst = cv2.warpPerspective(right, matrix, (left.shape[1] + right.shape[1], left.shape[0]))
-    leftmost_col = 0
-    while (leftmost_col < 640) and not np.sum(dst[:, leftmost_col]):
-        leftmost_col += 1
+    s = 0
+    while (s < 640) and not np.sum(dst[:, s]):
+        s += 1
+    return matrix, s
 
-    pos_left_bottom_corner = find_pos_left_bottom_corner(dst, leftmost_col)
-    return matrix, leftmost_col, pos_left_bottom_corner
-
-
-def find_pos_left_bottom_corner(matrix, leftmost_col):
-    pos_left_bottom_corner = (0, 0)
-    cur_col = leftmost_col
-    cur_intersection = find_first_nonzero_pixel_in_col(matrix, cur_col)
-    next_intersection = find_first_nonzero_pixel_in_col(matrix, cur_col + 1)
-    slope = next_intersection - cur_intersection
-    while (cur_col <= leftmost_col + 30) and pos_left_bottom_corner == (0, 0):
-        current_slope = next_intersection - cur_intersection
-        if current_slope != slope :
-            pos_left_bottom_corner = (next_intersection, cur_col + 1)
-            print(pos_left_bottom_corner)
-        else:
-            cur_col += 1
-            cur_intersection = next_intersection
-            next_intersection = find_first_nonzero_pixel_in_col(matrix, cur_col + 1)
-        cv2.circle(matrix,(cur_col+1,next_intersection),4,(0,0,255))
-        cv2.imshow('Find leftbottom pixel',matrix)
-    return pos_left_bottom_corner
-
-
-def find_first_nonzero_pixel_in_col(matrix, col):
-    nb_rows, _, _ = matrix.shape
-    row = nb_rows
-    nonzero = False
-    while row >= 0 and not nonzero:
-        row -= 1
-        nonzero = sum(matrix[row, col])
-
-    return row
 
 def stitch_video(left_video, right_video):
     t1 = time.time()
@@ -177,20 +102,19 @@ def stitch_video(left_video, right_video):
     i = -1
     while not keypoints_found:
         i += 1
-        M, s, pos_left_bottom_corner = eerste_frame((left_video[i], right_video[i]))
+        M, s = eerste_frame((left_video[i], right_video[i]))
         if M is not None:
             keypoints_found = True
 
     pano = []
     t2 = time.time()
-    tijden1 = [t2 - t1]
+    tijden1 = [t2-t1]
     tijden2, tijden3 = [], []
     for n in range(0, len(left_video)):
         t1 = time.time()
-        new_frame, tTrans, tSamen = stitch_frame((left_video[n], right_video[n]), M, s, pos_left_bottom_corner)
-        cv2.imshow('video', new_frame)
+        new_frame, tTrans, tSamen = stitch_frame((left_video[n], right_video[n]), M, s)
         pano.append(new_frame)
-        tijden1.append(time.time() - t1)
+        tijden1.append(time.time()-t1)
         tijden2.append(tTrans)
         tijden3.append(tSamen)
     # print(tijden1)
@@ -203,7 +127,7 @@ def stitch_cv2(left_video, right_video):
     tijden2 = []
     for n in range(0, 100):
         t1 = time.time()
-        new_frame = stitcher.stitch((left_video[n], right_video[n]))
+        new_frame = stitcher.stitch((left_video[n],right_video[n]))
         pano.append(new_frame)
         tijden2.append(time.time() - t1)
     print(tijden2)
@@ -212,8 +136,8 @@ def stitch_cv2(left_video, right_video):
 
 # video = video_ophalen('video/test.3gp')
 # left, right = splits(video, 640)
-right = video_ophalen("video's/vid_R.avi")
-left = video_ophalen("video's/vid_L.avi")
+right = video_ophalen("video's/vid_L.avi")
+left = video_ophalen("video's/vid_R.avi")
 # video_afspelen(left, 'left')
 # video_afspelen(right, 'right')
 print("met zelf gemaakt programma:\n")
@@ -223,16 +147,16 @@ t2 = time.time()
 x = range(len(tijden1))
 # plt.subplot(221)
 # plt.semilogy(x, tijden1, label="cv2.stitch")
-plt.scatter(x, tijden1, label="totaal")
+plt.scatter(x,tijden1, label="totaal")
 x = range(len(tijden2))
-plt.scatter(x, tijden2, label="transformatie")
-plt.scatter(x, tijden3, label="samenvoegen")
+plt.scatter(x,tijden2,label="transformatie")
+plt.scatter(x,tijden3,label="samenvoegen")
 plt.legend()
 plt.xlabel("frame")
 plt.ylabel("tijd")
 plt.ylim(0, 0.02)
 plt.xlim(0, len(tijden1))
-# plt.show()
+plt.show()
 # input("press enter to watch video")
 t4 = time.time()
 video_afspelen(pano)
