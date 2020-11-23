@@ -62,7 +62,6 @@ def handle_client(conn, addr, q):
     print(f"[NEW CONNECTION] {addr} connected.")
 
     connected = True
-    data = b""
     start = time.time()
     payload_size = struct.calcsize("Q")
     tijden = {'totaal':[],'foto_nemen':[],'ask_frame':[],'wait_for_data':[],'recieve_frame':[],'stitch':[],'show':[]}

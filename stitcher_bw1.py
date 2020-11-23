@@ -4,7 +4,7 @@ import numpy as np
 
 def find_kp_and_matrix(images):
     """
-    :param images: tuple met linker- en rechterfoto, vlolgorde is belangrijk!
+    :param images: tuple met linker- en rechterfoto, volgorde is belangrijk!
     :return: berekent de transformatiematrix om de rechterfoto te transformeren
              zodat deze op de linkerfoto past om een panoramabeeld te voremen
     """
