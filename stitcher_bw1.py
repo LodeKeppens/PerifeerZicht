@@ -66,13 +66,10 @@ def stitch_frame(images, M, s=0):
 
 
 
-def stitch_frame_right_warped(images, s):
+def stitch_frame_right_warped(images):
     """
     :param images: tuple met linker- en rechterfoto, is belangrijk!
-    :param M: transformatiematrix
-    :param s: vanaf welke kolom de overlap start
-     parameters M, s moeten worden berekend door de functie eerste frame
-    :return: voegt de twee foto's uit images samen met de transformatiematrix,
+    :return: voegt de twee foto's uit images samen,
              geeft als resultaat het panoramabeeld
     """
 
@@ -91,7 +88,6 @@ def stitch_frame_right_warped(images, s):
     return dst
 
 
-
 def eerste_frame(images):
     """
     :param images: tuple met linker- en rechterfoto, is belangrijk!
@@ -105,14 +101,9 @@ def eerste_frame(images):
     # bereken transformatiematrix, indien mislukt return None,None
     matrix = find_kp_and_matrix((left, right))
     if matrix is None:
-        return None, None
+        return None
 
-    # zoek waar de overlap begint
-    dst = cv2.warpPerspective(right, matrix, (2*w, h))
-    s = 0
-    while (s < w) and not np.sum(dst[:, s]):
-        s += 1
-    return matrix, s
+    return matrix
 
 
 def stitch_video(left_video, right_video):
