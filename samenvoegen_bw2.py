@@ -25,26 +25,26 @@ def first_frame(conn, q):
     data = b""
     print('receiving the first frame')
     while len(data) < int(FRAME_LENGTH):
-        data += conn.recv(4 * 1024)
+        data += conn.recv(FRAME_LENGTH)
     frame_client = np.array(pickle.loads(data))
 
     # transform matrix
-    matrix, s = stitcher_bw1.eerste_frame((frame_server, frame_client))
+    matrix = stitcher_bw1.eerste_frame((frame_server, frame_client))
     if matrix is None:
         exit(0)
     print('sending 3x3 transformation matrix')
     print(matrix)
     conn.sendall(pickle.dumps(matrix))
-    return s
 
 
 def handle_client(conn, q_server, q_client):
+    tijden = {'totaal': [], 'fotos_ophalen': [], 'stitch': [], 'show': []}
     connected = True
-    start = time.time()
     print('first frame')
-    s = first_frame(conn, q_server)
+    first_frame(conn, q_server)
     clietThread = mp.Process(target=video_client, args=(q_client, conn))
     clietThread.start()
+    start = time.time()
     while connected:
         end = time.time()
         tijden['totaal'].append(end-start)
@@ -57,7 +57,7 @@ def handle_client(conn, q_server, q_client):
         tijden['fotos_ophalen'].append(t1-start)
 
         # merge the pictures
-        stitched = stitcher_bw1.stitch_frame_right_warped((frame_server, frame_client), s)
+        stitched = stitcher_bw1.stitch_frame_right_warped((frame_server, frame_client))
         t2 = time.time()
         tijden['stitch'].append(t2-t1)
         cv2.imshow('Stitched', stitched)
@@ -73,7 +73,9 @@ def handle_client(conn, q_server, q_client):
     gemiddeld = sum(tijden['totaal'])/len(tijden['totaal'])
     print(gemiddeld)
     for key in tijden:
-        plt.scatter(range(len(tijden[key])), tijden[key], label=key)
+        val = tijden[key]
+        plt.scatter(range(len(val)), val, label=key)
+        print(key, sum(val)/len(val))
     plt.legend()
     plt.xlabel("frame")
     plt.ylabel("tijd")
@@ -97,23 +99,17 @@ def video_stream(q):
     time.sleep(0.1)
 
     for frame2 in cam.capture_continuous(rawCapture, format="bgr", use_video_port=True):
-        t = time.time()
         q.put(cv2.rotate(frame2.array, cv2.ROTATE_180))
-        tijden['new_frame_server'].append(time.time()-t)
         rawCapture.truncate(0)
-        if _FINISH:
-            break
 
 
 def video_client(q, conn):
     while True:
-        t = time.time()
         data = b""
         send(conn, "!new_frame")
         while len(data) < int(2 * FRAME_LENGTH - 163):
             data += conn.recv(2 * FRAME_LENGTH - 163)
         q.put(np.array(pickle.loads(data)))
-        tijden['new_frame_client'].append(time.time()-t)
 
 
 def start():
@@ -121,7 +117,6 @@ def start():
     q_client = mp.Queue(maxsize=1)
     print('queues created')
     # run_client()
-    print('server accepted')
     thread = mp.Process(target=handle_client, args=(conn, q_server, q_client))
     cameraThread = mp.Process(target=video_stream, args=(q_server,))
     cameraThread.start()
@@ -160,5 +155,4 @@ if __name__ == '__main__':
     cam_res = (320, 240)
     FRAME_LENGTH = cam_res[0] * cam_res[1] * 3 + 163  # 230563
     print("[STARTING] server is starting...")
-    tijden = {'totaal':[],'fotos_ophalen':[],'stitch':[],'show':[],'new_frame_server':[],'new_frame_client':[]}
     start()

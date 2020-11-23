@@ -60,15 +60,14 @@ def first_frame():
 
 def handle_server(q):
     connected = True
-    tijden = {'totaal': [], 'foto_nemen': [], 'wachten_op_vraag': [], 'send': [], 'transformatie': []}
+    tijden = {'totaal': [], 'foto_nemen': [], 'wachten_op_vraag': [], 'send': []}
     start = time.time()
     t1 = start
-    n = 0
+    # n = 0
     while connected:
         # if n > 100:
         #     break
         end = time.time()
-        print(end-start)
         tijden['totaal'].append(end - start)
         if time.time() - t1 > 3:
             exit(0)
@@ -78,22 +77,21 @@ def handle_server(q):
         if msg == NEW_FRAME_MESSAGE:
             t1 = time.time()
             tijden['wachten_op_vraag'].append(t1 - start)
-            message = pickle.dumps(q.get())  # Turns the image into a bytes object.
+            frame = q.get()
+            message = pickle.dumps(frame)  # Turns the image into a bytes object.
             t3 = time.time()
             tijden['foto_nemen'].append(t3 - t1)
             client.sendall(message)
             t2 = time.time()
             tijden['send'].append(t2 - t3)
-            n += 1
+            # n += 1
         elif msg == DISCONNECT_MESSAGE:
             break
 
-        # if the `q` key was pressed, break from the loop
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-    # for key in tijden:
-    #     plt.scatter(range(len(tijden[key])), tijden[key], label=key)
+    for key in tijden:
+        val = tijden[key]
+        # plt.scatter(range(len(val)), val, label=key)
+        print(key, sum(val)/len(val))
     # plt.legend()
     # plt.xlabel("frame")
     # plt.ylabel("tijd")
@@ -139,8 +137,4 @@ if __name__ == '__main__':
 
     print("[STARTING] client is starting...")
     start()
-    # disc_msg = DISCONNECT_MESSAGE
-    # send_disc_msg = str(disc_msg).encode(FORMAT)
-    # send_disc_msg += b' ' * (HEADER - len(send_disc_msg))
-    # client.send(send_disc_msg)
     cv2.destroyAllWindows()
