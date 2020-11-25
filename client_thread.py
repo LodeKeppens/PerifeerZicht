@@ -9,23 +9,14 @@ import pickle
 import matplotlib.pyplot as plt
 from queue import LifoQueue
 import threading
+import imagezmq
 
 
 def send(msg):
     client.sendall(msg)
 
 
-# initialize the camera and grab a reference to the raw camera capture
-camera = PiCamera()
-cam_res = (320, 240)
-camera.resolution = cam_res
-camera.framerate = 24
-camera.start_preview()
-rawCapture = PiRGBArray(camera, size=cam_res)
-time.sleep(0.1)
-
-
-def video_stream(q,M):
+def video_stream(q, M):
     """
     :param q: queue
     continiously takes pictures and puts them in q
@@ -55,6 +46,7 @@ def first_frame():
     while len(data) < LEN_MATRIX:
         data += client.recv(4 * 1024)
     matrix = np.array(pickle.loads(data))
+    # np.savetxt('transformation_matrix.csv', matrix, delimiter=',') # save matrix on rpi
     return matrix
 
 
@@ -100,14 +92,22 @@ def handle_server(q):
     exit(0)
 
 
+def stream_video(q):
+    global _FINISH
+    sender = imagezmq.ImageSender(connect_to=f"tcp://{SERVER}:{5555}")
+    pi_name = socket.gethostname()
+    while True:
+        sender.send_image(pi_name, q.get())
+
+
 def start():
     global _FINISH
     print('first frame')
     matrix = first_frame()
     q = LifoQueue(maxsize=1)
-    thread = threading.Thread(target=handle_server, args=(q,))
+    thread = threading.Thread(target=stream_video, args=(q,))
     cameraThread = threading.Thread(target=video_stream, args=(q, matrix))
-    print('start processes')
+    print('start threads')
     cameraThread.start()
     thread.start()
     thread.join()
@@ -116,6 +116,15 @@ def start():
 
 
 if __name__ == '__main__':
+    # initialize the camera and grab a reference to the raw camera capture
+    camera = PiCamera()
+    cam_res = (320, 240)
+    camera.resolution = cam_res
+    camera.framerate = 24
+    camera.start_preview()
+    rawCapture = PiRGBArray(camera, size=cam_res)
+    time.sleep(0.1)
+
     _FINISH = False
     # setup a connection with the server
     HEADER = 16
