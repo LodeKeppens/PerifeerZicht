@@ -5,7 +5,7 @@ import time
 import cv2
 import numpy as np
 from SSH_test import *
-
+#LucasLucas Lucas
 source = r'/home/pi/Documents/frame.npy'
 dest = r'Documents/frame.npy'
 # initialize the camera and grab a reference to the raw camera capture
