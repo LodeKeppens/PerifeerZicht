@@ -13,7 +13,7 @@ import imagezmq
 def video_stream(q):
     """
     :param q: queue
-    continiously takes pictures and puts them in q
+    continuously takes pictures and puts them in q
     """
     # load transformation matrix, saved on the pi
     M = np.loadtxt('transformation_matrix.csv', delimiter=',')
@@ -25,7 +25,7 @@ def video_stream(q):
 def stream_video_to_server(q):
     """
     :param q: queue
-    continiously streams the frames in q to the server
+    continuously streams the frames in q to the server
     """
     sender = imagezmq.ImageSender(connect_to=f"tcp://{SERVER}:{PORT}")
     pi_name = socket.gethostname()
