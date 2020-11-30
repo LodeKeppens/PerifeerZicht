@@ -29,7 +29,7 @@ def stitch_and_show(q_server, q_client):
     display = mp.Process(target=show, args=(q_video,))
     display.start()
 
-    start = time.time()
+    time_start = time.time()
     nb_frames = 0
     while True:
         nb_frames += 1
@@ -49,8 +49,8 @@ def stitch_and_show(q_server, q_client):
         q_video.put(stitched)
 
     # print average time per frame
-    end = time.time()
-    print((end-start)/nb_frames)
+    time_end = time.time()
+    print((time_end-time_start)/nb_frames)
     display.terminate()
     display.join()
 
@@ -71,8 +71,8 @@ def video_stream(q):
 
 def video_stream_from_client(q):
     """
-    :param q: qeueu where recieved frames will come
-    recieves the frames from client
+    :param q: queue where received frames will come
+    Receives the frames from client
     """
     imageHub = imagezmq.ImageHub()
     while True:
@@ -84,7 +84,7 @@ def video_stream_from_client(q):
 def show(q):
     """
     :param q: queue with the stitched frames
-    shows the live video
+    Shows the live video
     """
 
     # create named window where video will be showed
@@ -106,8 +106,8 @@ def show(q):
 
 def start():
     """
-    create queues to communicate between processes
-    then creates and starts stitch and camera proces
+    Create queues to communicate between processes
+    then creates and starts stitch and camera processes
     """
     # create queues
     q_server = mp.Queue(maxsize=1)
@@ -116,17 +116,17 @@ def start():
     # create and start processes
     stitchProcess = mp.Process(target=stitch_and_show, args=(q_server, q_client))
     cameraProcess = mp.Process(target=video_stream, args=(q_server,))
-    clietProcess = mp.Process(target=video_stream_from_client, args=(q_client,))
-    clietProcess.start()
+    clientProcess = mp.Process(target=video_stream_from_client, args=(q_client,))
+    clientProcess.start()
     cameraProcess.start()
     stitchProcess.start()
 
     # wait for stitchProcess to terminate, then terminate the other processes
     stitchProcess.join()
     cameraProcess.terminate()
-    clietProcess.terminate()
+    clientProcess.terminate()
     cameraProcess.join()
-    clietProcess.join()
+    clientProcess.join()
 
 
 if __name__ == '__main__':
@@ -138,7 +138,6 @@ if __name__ == '__main__':
     SERVER = "169.254.233.181"    # HEKTOR
 
     # run_client() # hier is nog probleempje mee, client runt wel degelijk ,(want krijg pycameraerror bij 2e poging)
-
     cam_res = (320, 240)
     FRAME_LENGTH = cam_res[0] * cam_res[1] * 3 + 163  # 230563
     print("[STARTING] server is starting...")
