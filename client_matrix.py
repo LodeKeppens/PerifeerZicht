@@ -51,3 +51,4 @@ while connected:
         # save the matrix on the rpi
         np.savetxt('transformation_matrix.csv', matrix, delimiter=',')
         connected = False
+µ
