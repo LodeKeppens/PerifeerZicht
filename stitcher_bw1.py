@@ -30,6 +30,7 @@ def find_kp_and_matrix(images):
     # return de waarde None als er niet genoeg matches zijn gevonden
     MIM_MATCH_COUNT = 10
     if len(good) <= MIM_MATCH_COUNT:
+        print('matrix not found')
         return None
     src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
     dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
@@ -39,7 +40,7 @@ def find_kp_and_matrix(images):
     return M
 
 
-def stitch_frame(images, M, s=0):
+def stitch_frame(images, M):
     """
     :param images: tuple met linker- en rechterfoto, is belangrijk!
     :param M: transformatiematrix
@@ -54,14 +55,13 @@ def stitch_frame(images, M, s=0):
     h, w, d = right.shape
     dst = cv2.warpPerspective(right, M, (2*w, h))
 
-    # voeg de linkerfoto toe op het deel dat niet overlapt
-    dst[:h, :s] = left[:h, :s]
-
-    # voeg de foto's samen in het overlappend deel zodat een zachte overgang ontstaat
-    step = 1
-    for n in range(s, w-step, step):
-        x = (n - s) / (w - s)
-        dst[:, n:n+step] = cv2.addWeighted(left[:, n:n+step], 1 - x, dst[:, n:n+step], x, 0)
+    # voeg de foto's samen, met zachte overgang
+    delta = 20
+    dst[:, :w - delta] = left[:, :w - delta]
+    for d in range(delta):
+        n = w - d - 1
+        x = d / delta
+        dst[:, n] = cv2.addWeighted(left[:, n], x, dst[:, n], 1 - x, 0)
     return dst
 
 
@@ -79,8 +79,9 @@ def stitch_frame_right_warped(images):
     h, w, d = left.shape
 
     # voeg de foto's samen en maak zachte overgang op grens tussen foto's
-    delta = 50
+    delta = 20
     dst[:, :w-delta] = left[:, :w-delta]
+    # print(sum(cv2.subtract(dst[:, w-delta:w], left[:, w-delta:w]))/(delta*h))
     for d in range(delta):
         n = w-d-1
         x = d/delta
@@ -97,13 +98,15 @@ def eerste_frame(images):
 
     left, right = images
     h, w, d = left.shape
-
-    # bereken transformatiematrix, indien mislukt return None,None
+    # bereken transformatiematrix, indien mislukt return None
     matrix = find_kp_and_matrix((left, right))
     if matrix is None:
-        return None
-
-    return matrix
+        return None, None
+    dst = cv2.warpPerspective(right, matrix, (2*w, h))
+    s = 0
+    while all(dst[:,s]) == 0:
+        s += 1
+    return matrix, s
 
 
 def stitch_video(left_video, right_video):
