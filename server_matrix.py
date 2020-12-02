@@ -2,30 +2,27 @@ import socket
 import cv2
 import numpy as np
 import pickle
-from picamera import PiCamera
-from picamera.array import PiRGBArray
+from imutils.video import VideoStream
 import stitcher_bw1
 import paramiko
 
+show_res = (640, 480)
 # camera initialization
-cam = PiCamera()
-cam_res = (320, 240)
-cam.resolution = cam_res
-cam.framerate = 24
-rawCapture = PiRGBArray(cam, size=cam_res)
+cam_res = (1648, 1232)
+camera = VideoStream(resolution=cam_res, framerate=5, usePiCamera=True).start()
+while camera.read() is None:
+    pass
 
 # initialize connection
 HEADER = 16
+FORMAT = 'utf-8'
 # IP_CLIENT = "169.254.186.249" #LODE
 # SERVER = "169.254.186.249" #LODE
 IP_CLIENT = "169.254.27.179"  # HEKTOR
 SERVER = "169.254.233.181"  # HEKTOR
-FORMAT = 'utf-8'
-DISCONNECT_MESSAGE = "!DISCONNECT"
 PORT = 5050
-ADDR = (SERVER, PORT)
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server.bind(ADDR)
+server.bind((SERVER, PORT))
 server.listen()
 print(f"[LISTENING] Server is listening on {SERVER}")
 
@@ -33,10 +30,10 @@ print(f"[LISTENING] Server is listening on {SERVER}")
 ssh = paramiko.SSHClient()
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy)
 ssh.connect(IP_CLIENT, username="pi", password="qwertyui")
-ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command("python Documents/client_matrix.py")
+ssh.exec_command("python Documents/client_matrix.py")
 
 conn, _ = server.accept()
-FRAME_LENGTH = cam_res[0] * cam_res[1] * 3 + 163  # 230563
+FRAME_LENGTH = cam_res[0] * cam_res[1] * 3 + 163
 print("[STARTING] server is starting...")
 connected = True
 while connected:
@@ -47,9 +44,7 @@ while connected:
     conn.send(message)
 
     # take a picture
-    frame_server = np.empty((cam_res[1], cam_res[0], 3), dtype=np.uint8)
-    cam.capture(frame_server, 'bgr')
-    frame_server = cv2.rotate(frame_server, cv2.ROTATE_180)
+    frame_server = cv2.rotate(camera.read(), cv2.ROTATE_180)
 
     # receive picture from client
     data = b""
@@ -58,13 +53,16 @@ while connected:
     frame_client = np.array(pickle.loads(data))
 
     # find the transformation matrix
-    cv2.imshow('server', frame_server)
-    cv2.imshow('client', frame_client)
+    print("computing transformation matrix...")
     matrix = stitcher_bw1.find_kp_and_matrix((frame_server, frame_client))
 
     if matrix is not None:
         # show panorama
-        cv2.imshow('panorama', stitcher_bw1.stitch_frame((frame_server, frame_client), matrix))
+        print("stitching frames, to show result...")
+        stitched = stitcher_bw1.stitch_frame((frame_server, frame_client), matrix)
+        cv2.imshow('server', cv2.resize(frame_server, show_res))
+        cv2.imshow('client', cv2.resize(frame_client, show_res))
+        cv2.imshow('panorama', cv2.resize(stitched, (show_res[0]*2, show_res[1])))
         cv2.waitKey(0)
         # and ask if the result is good
         answer = input("try again?(yes/no): ")
@@ -76,3 +74,7 @@ while connected:
             conn.sendall(pickle.dumps(matrix))
             conn.close()
             connected = False
+            print('matrix send to client')
+
+    else:
+        print('not enough keypoints found, trying again...')
