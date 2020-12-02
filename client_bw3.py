@@ -16,12 +16,15 @@ def video_stream(q):
     # initialize the camera
     cam_res = (320, 240)
     camera = VideoStream(resolution=cam_res, framerate=40, usePiCamera=True).start()
+
+    # wait for camera to start
     while camera.read() is None:
         pass
 
     # load transformation matrix, saved on the pi
     M = np.loadtxt('transformation_matrix.csv', delimiter=',')
 
+    # take frame, transform and put in queue
     while True:
         q.put(cv2.warpPerspective(camera.read(), M, (2 * cam_res[0], cam_res[1])))
 
@@ -33,6 +36,12 @@ def stream_video_to_server(q):
     """
     sender = imagezmq.ImageSender(connect_to=f"tcp://{SERVER}:{PORT}")
     pi_name = socket.gethostname()
+
+    # wait for camera to be ready
+    while q.empty():
+        pass
+
+    # send the frames
     while True:
         sender.send_image(pi_name, q.get())
 
