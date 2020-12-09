@@ -125,6 +125,7 @@ def stitch_cv2(left_video, right_video):
     stitcher = cv2.Stitcher.create()
     t1 = time.time()
     tijden2 = []
+    pano = []
     for n in range(0, 100):
         t1 = time.time()
         new_frame = stitcher.stitch((left_video[n],right_video[n]))
@@ -134,7 +135,7 @@ def stitch_cv2(left_video, right_video):
     return pano, tijden2
 
 
-if __name__ == 'main':
+if __name__ == '__main__':
     # video = video_ophalen('video/test.3gp')
     # left, right = splits(video, 640)
     right = video_ophalen("video's/vid_L.avi")

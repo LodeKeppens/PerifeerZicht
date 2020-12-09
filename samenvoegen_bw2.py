@@ -15,7 +15,7 @@ def run_client():
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy)
     ssh.connect(IP_CLIENT, username="pi", password="qwertyui")
-    ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command("python Documents/client_no_length_bw1.py")
+    ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command("python Documents/client_thread.py")
 
 
 def first_frame(conn, q):
