@@ -79,7 +79,7 @@ def stitch_frame_right_warped(images):
     h, w, d = left.shape
 
     # voeg de foto's samen en maak zachte overgang op grens tussen foto's
-    delta = 50
+    delta = 20
     dst[:, :w-delta] = left[:, :w-delta]
     # print(sum(cv2.subtract(dst[:, w-delta:w], left[:, w-delta:w]))/(delta*h))
     for d in range(delta):
